@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+data/raw/
+data/normalized/
+data/chroma_db/
+data/persona/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/

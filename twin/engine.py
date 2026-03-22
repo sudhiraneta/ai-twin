@@ -1,0 +1,210 @@
+import json
+import re
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+
+import anthropic
+
+from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, MAX_CONTEXT_MESSAGES
+from memory.vectorstore import VectorStore
+from memory.chunker import Chunk
+from persona.profile import PersonaProfile
+from .prompts import build_system_prompt, MEMORY_CONTEXT_TEMPLATE
+
+
+@dataclass
+class DecisionResponse:
+    """Structured response from the decision mode."""
+    your_decision: str = ""
+    ideal_decision: str = ""
+    reasoning_gap: str = ""
+    confidence_score: str = ""
+    follow_up_questions: list[str] = field(default_factory=list)
+    raw_response: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+class TwinEngine:
+    """The core AI twin: persona-prompted LLM with RAG memory retrieval."""
+
+    def __init__(self):
+        self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.vector_store = VectorStore()
+        self.persona = PersonaProfile.load()
+        self.conversation_history: list[dict] = []
+        self._message_count = 0
+
+    def chat(self, user_message: str) -> str:
+        """Send a message to the twin and get a response."""
+        self._message_count += 1
+
+        # Enable data collection every ~5 messages
+        enable_data_collection = (self._message_count % 5 == 0)
+
+        memory_context = self._retrieve_memories(user_message)
+
+        system_prompt = build_system_prompt(
+            persona_prompt=self.persona.system_prompt,
+            memory_context=memory_context,
+            decision_mode=False,
+            enable_data_collection=enable_data_collection,
+        )
+
+        self.conversation_history.append({
+            "role": "user",
+            "content": user_message,
+        })
+
+        response = self.client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=4096,
+            system=system_prompt,
+            messages=self.conversation_history,
+        )
+
+        assistant_message = response.content[0].text
+
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": assistant_message,
+        })
+
+        return assistant_message
+
+    def decide(self, question: str) -> DecisionResponse:
+        """Analyze a decision question with dual-lens (your decision vs ideal)."""
+        memory_context = self._retrieve_memories(question)
+
+        # Include decision history from persona if available
+        decision_history_context = ""
+        if self.persona.decision_history:
+            recent = self.persona.decision_history[-10:]
+            history_lines = []
+            for d in recent:
+                line = f"- Q: {d['question']} → Decided: {d['decision']}"
+                if d.get("outcome"):
+                    line += f" → Outcome: {d['outcome']}"
+                history_lines.append(line)
+            decision_history_context = "\n## Past Decision History\n" + "\n".join(history_lines)
+
+        # Build persona context with extra decision traits
+        persona_context = self.persona.system_prompt
+        if self.persona.cognitive_biases:
+            persona_context += f"\n\nKnown cognitive biases: {', '.join(self.persona.cognitive_biases)}"
+        if self.persona.risk_tolerance:
+            persona_context += f"\nRisk tolerance: {self.persona.risk_tolerance}"
+        if self.persona.time_preference:
+            persona_context += f"\nTime preference: {self.persona.time_preference}"
+
+        full_memory = (memory_context or "") + decision_history_context
+
+        system_prompt = build_system_prompt(
+            persona_prompt=persona_context,
+            memory_context=full_memory if full_memory.strip() else None,
+            decision_mode=True,
+        )
+
+        response = self.client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=4096,
+            system=system_prompt,
+            messages=[{"role": "user", "content": question}],
+        )
+
+        raw = response.content[0].text
+        return self._parse_decision_response(raw)
+
+    def learn(self, data_point: str) -> dict:
+        """Ingest a new user-provided data point into memory."""
+        chunk = Chunk(
+            text=data_point,
+            metadata={
+                "source": "self_reported",
+                "conversation_id": "",
+                "title": "User data point",
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "msg_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "role": "user",
+                "type": "data_point",
+            }
+        )
+        count = self.vector_store.ingest([chunk])
+        return {"status": "learned", "chunks_added": count, "data_point": data_point}
+
+    def _retrieve_memories(self, query: str) -> str | None:
+        """Retrieve relevant conversation memories for context."""
+        if self.vector_store.count() == 0:
+            return None
+
+        results = self.vector_store.search(
+            query=query,
+            n_results=MAX_CONTEXT_MESSAGES,
+        )
+
+        if not results:
+            return None
+
+        memory_lines = []
+        for r in results:
+            source = r["metadata"].get("source", "unknown")
+            title = r["metadata"].get("title", "")
+            timestamp = r["metadata"].get("timestamp", "")
+            mem_type = r["metadata"].get("type", "")
+            prefix = f"[{source}"
+            if mem_type == "data_point":
+                prefix = "[self-reported"
+            if title:
+                prefix += f" - {title}"
+            if timestamp:
+                prefix += f" | {timestamp}"
+            prefix += "]"
+            memory_lines.append(f"{prefix}\n{r['text']}")
+
+        memories_text = "\n\n---\n\n".join(memory_lines)
+        return MEMORY_CONTEXT_TEMPLATE.format(memories=memories_text)
+
+    def _parse_decision_response(self, raw: str) -> DecisionResponse:
+        """Parse the structured decision response from the LLM."""
+        response = DecisionResponse(raw_response=raw)
+
+        sections = {
+            "your_decision": r"## Your Likely Decision\s*\n(.*?)(?=\n## |\Z)",
+            "ideal_decision": r"## Ideal Decision\s*\n(.*?)(?=\n## |\Z)",
+            "reasoning_gap": r"## Gap Analysis\s*\n(.*?)(?=\n## |\Z)",
+            "confidence_score": r"## Confidence Score\s*\n(.*?)(?=\n## |\Z)",
+            "follow_up_raw": r"## Follow-Up Questions\s*\n(.*?)(?=\n## |\Z)",
+        }
+
+        for field_name, pattern in sections.items():
+            match = re.search(pattern, raw, re.DOTALL)
+            if match:
+                value = match.group(1).strip()
+                if field_name == "follow_up_raw":
+                    # Extract individual questions
+                    questions = re.findall(r'[-•*]\s*(.+)', value)
+                    if not questions:
+                        questions = [q.strip() for q in value.split('\n') if q.strip()]
+                    response.follow_up_questions = questions
+                else:
+                    setattr(response, field_name, value)
+
+        # If parsing failed, put everything in your_decision
+        if not response.your_decision and not response.ideal_decision:
+            response.your_decision = raw
+
+        return response
+
+    def search_memory(self, query: str, n_results: int = 10) -> list[dict]:
+        """Search the twin's memory directly."""
+        return self.vector_store.search(query=query, n_results=n_results)
+
+    def reset_conversation(self):
+        """Clear the current conversation history (not memory)."""
+        self.conversation_history = []
+        self._message_count = 0
+
+    def reload_persona(self):
+        """Reload persona profile from disk."""
+        self.persona = PersonaProfile.load()
