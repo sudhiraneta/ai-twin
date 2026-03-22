@@ -4,7 +4,35 @@ from dataclasses import dataclass
 @dataclass
 class Chunk:
     text: str
-    metadata: dict  # source, conversation_id, timestamp, role, etc.
+    metadata: dict  # source, conversation_id, timestamp, role, pillar, dimension, etc.
+
+
+# Default metadata fields for every chunk
+DEFAULT_METADATA = {
+    "source": "",
+    "conversation_id": "",
+    "title": "",
+    "timestamp": "",
+    "msg_timestamp": "",
+    "role": "",
+    "type": "",
+    "pillar": "",
+    "dimension": "",
+    "classified": "false",
+}
+
+
+def _ensure_metadata(metadata: dict) -> dict:
+    """Ensure all canonical metadata fields exist and values are strings."""
+    result = {**DEFAULT_METADATA, **metadata}
+    # ChromaDB requires all metadata values to be str, int, float, or bool
+    for key, value in result.items():
+        if value is None:
+            result[key] = ""
+        elif isinstance(value, (list, dict)):
+            import json
+            result[key] = json.dumps(value)
+    return result
 
 
 class Chunker:
@@ -31,7 +59,7 @@ class Chunker:
                     for text in text_chunks:
                         chunks.append(Chunk(
                             text=text,
-                            metadata={
+                            metadata=_ensure_metadata({
                                 "source": source,
                                 "conversation_id": conv_id,
                                 "title": title or "",
@@ -39,7 +67,7 @@ class Chunker:
                                 "msg_timestamp": msg.get("timestamp", ""),
                                 "role": "user",
                                 "type": "user_message",
-                            }
+                            })
                         ))
 
             # Strategy 2: Chunk user-assistant pairs (for context retrieval)
@@ -54,7 +82,7 @@ class Chunker:
                         for text in text_chunks:
                             chunks.append(Chunk(
                                 text=text,
-                                metadata={
+                                metadata=_ensure_metadata({
                                     "source": source,
                                     "conversation_id": conv_id,
                                     "title": title or "",
@@ -62,7 +90,7 @@ class Chunker:
                                     "msg_timestamp": user_msg.get("timestamp", ""),
                                     "role": "pair",
                                     "type": "conversation_pair",
-                                }
+                                })
                             ))
 
         return chunks
@@ -89,3 +117,9 @@ class Chunker:
             start = end - self.overlap
 
         return [c for c in chunks if c]
+
+    def chunk_text_with_metadata(self, text: str, metadata: dict) -> list[Chunk]:
+        """Split a single text into chunks, preserving metadata on each."""
+        metadata = _ensure_metadata(metadata)
+        segments = self._split_text(text)
+        return [Chunk(text=seg, metadata=metadata.copy()) for seg in segments]

@@ -11,6 +11,20 @@ Core behaviors:
 - Proactively surface relevant past context the person might have forgotten
 
 If you're unsure about something the person would know, say so — don't fabricate memories.
+
+## Attribution: "Why I think this"
+
+After your main response, ALWAYS include a brief **> Why I think this:** block (as a blockquote) that explains your reasoning by citing specific evidence:
+- Persona traits that shaped the response (e.g., "You tend to prioritize X over Y")
+- Past decisions or patterns from memory (e.g., "Based on your note from March where you chose...")
+- Weekly review wins or progress data (e.g., "Your career pillar had 13 entries last week")
+- Habits or lifestyle signals (e.g., "Your soul checkin shows consistent morning routines")
+- Goals or plan context (e.g., "You're on Day 21 of your 30-day leadership plan")
+
+Keep the Why block to 2-4 sentences. Be specific — cite the actual data. If you have no relevant evidence, say "No prior data on this topic."
+
+Example format:
+> **Why I think this:** You've historically chosen Python for data projects (seen in 4 past conversations). Your career focus this week is on Drata onboarding, and you mentioned prioritizing shipping speed in your March 11 notes. Your risk tolerance is moderate, so you'd go with the proven stack.
 """
 
 DECISION_MODE_PROMPT = """You are an AI twin operating in DECISION MODE. You must analyze decision questions through two lenses and respond in a structured format.
@@ -46,6 +60,15 @@ Ask 1-2 targeted questions that would help you make better predictions next time
 - Values hierarchy ("When X conflicts with Y, which wins for you?")
 
 IMPORTANT: Always ground your "Your Likely Decision" in specific evidence. Never guess without citing patterns.
+
+In the "Your Likely Decision" and "Gap Analysis" sections, explicitly reference:
+- Past decisions the person has made (from decision history or memories)
+- Weekly review wins and progress patterns
+- Soul checkin habits (meditation, morning routine consistency)
+- Gym/nutrition patterns and health goals
+- 30-day plan context (current day, focus area, books being read)
+- Rep milestones and skill-building patterns
+- Specific notes, journal entries, or browsing patterns that inform the prediction
 """
 
 DATA_COLLECTION_PROMPT = """Additionally, you should occasionally (roughly every 5 messages) ask ONE brief calibration question to learn more about the person. These questions should feel natural and conversational, not like a survey. Good examples:
@@ -56,13 +79,24 @@ DATA_COLLECTION_PROMPT = """Additionally, you should occasionally (roughly every
 Only ask when it feels natural in the conversation flow. Never ask more than one per message.
 """
 
-MEMORY_CONTEXT_TEMPLATE = """## Relevant memories from past conversations
+MEMORY_CONTEXT_TEMPLATE = """## Relevant memories from past conversations and personal data
 
-The following are excerpts from the person's past conversations that are relevant to the current query:
+The following are excerpts from the person's past conversations, notes, browsing habits, tasks, health tracking, and personal development data:
 
 {memories}
 
-Use these memories naturally in your response. Reference specific past discussions when relevant.
+Use these memories naturally. Reference notes, browsing patterns, gym habits, tasks, and past discussions when relevant to give a complete picture of this person.
+"""
+
+
+DIMENSION_CONTEXT_TEMPLATE = """## Persona Dimensions (relevant to this conversation)
+
+The following are deep personality dimensions extracted from the person's data across
+code, health, goals, relationships, entertainment, and more:
+
+{dimension_summaries}
+
+Use these dimensions to give more nuanced, contextually appropriate responses.
 """
 
 
@@ -71,8 +105,9 @@ def build_system_prompt(
     memory_context: str | None = None,
     decision_mode: bool = False,
     enable_data_collection: bool = False,
+    dimension_context: str | None = None,
 ) -> str:
-    """Compose the full system prompt from persona + base + memory context."""
+    """Compose the full system prompt from persona + base + memory + dimensions."""
     if decision_mode:
         parts = [DECISION_MODE_PROMPT]
     else:
@@ -83,6 +118,9 @@ def build_system_prompt(
 
     if persona_prompt:
         parts.append(f"\n## Persona Profile\n\n{persona_prompt}")
+
+    if dimension_context:
+        parts.append(f"\n{DIMENSION_CONTEXT_TEMPLATE.format(dimension_summaries=dimension_context)}")
 
     if memory_context:
         parts.append(f"\n{memory_context}")
