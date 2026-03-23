@@ -133,17 +133,34 @@ if page == "Ask Persona":
                         "data_point": "📝", "singularity_entry": "⚡",
                         "note": "📒", "browser_daily": "🌐", "browser_domain": "🔗",
                         "task": "📋", "body_gym": "💪", "body_nutrition": "🥗",
-                        "weekly_review": "📊", "soul_checkin": "🌙",
+                        "body_wellness": "🧘", "weekly_review": "📊", "soul_checkin": "🌙",
                         "goals_completed": "🏆", "plan_note": "📅",
                         "pillar_journal": "📓", "photo_daily": "📸",
+                        "raptor_L1": "🏷️", "raptor_L2": "🗂️",
                     }
                     icon = TYPE_ICONS.get(mem_type, "📄")
+
+                    # Cluster info
+                    cluster_label = meta.get("cluster_label", "")
+                    cluster_badge = f" | Cluster: `{cluster_label}`" if cluster_label else ""
+
+                    # RAPTOR level badge
+                    raptor_badge = ""
+                    if mem_type == "raptor_L1":
+                        raptor_badge = " [Topic Summary]"
+                    elif mem_type == "raptor_L2":
+                        raptor_badge = " [Pillar Summary]"
 
                     tier = r.get("_tier", "")
                     tier_badge = " 🟢" if tier == "primary" else " 🔵" if tier == "secondary" else ""
 
-                    with st.expander(f"{icon} #{i+1} [{dim}] {relevance}%{tier_badge} — {title[:40] or r['text'][:40]}"):
-                        st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts} | Tier: {tier or 'general'}")
+                    with st.expander(f"{icon} #{i+1} [{dim}] {relevance}%{tier_badge}{raptor_badge} — {title[:40] or r['text'][:40]}"):
+                        meta_line = f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts}"
+                        if cluster_label:
+                            meta_line += f" | Cluster: {cluster_label}"
+                        if tier:
+                            meta_line += f" | Tier: {tier}"
+                        st.caption(meta_line)
                         st.write(r["text"])
             else:
                 st.info("No context found for this query.")
