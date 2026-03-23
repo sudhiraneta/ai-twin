@@ -1210,3 +1210,479 @@ ALL 42 TESTS PASSED!
 [13:42:55]   PASS: profile_snapshot
 [13:42:55]   PASS: profile_migration
 [13:42:55]   PASS: engine_init
+[13:42:57]   PASS: engine_learn
+[13:42:59]   PASS: engine_search_memory
+[13:42:59]   PASS: prompts_templates
+[13:42:59]   PASS: config_constants
+[13:42:59]   PASS: daily_loop_init
+[13:43:03]   PASS: daily_loop_status
+[13:43:03]   PASS: api_routes_registered
+[13:43:03]   PASS: api_memory_stats
+[13:43:05]   PASS: api_memory_search_fields
+[13:43:05]   PASS: api_persona_dimensions
+[13:43:05]   PASS: api_sync_status
+[13:43:05]   PASS: api_persona_evolution
+[13:43:05]   PASS: api_persona_ask
+[13:43:05]   PASS: parsers_gemini_html
+[13:43:05]   PASS: parsers_youtube
+[13:43:05]   PASS: connectors_all
+[13:43:05]   PASS: ui_syntax
+[13:43:05]   PASS: ui_persona_dimensions_fields
+[13:43:05]   PASS: ui_sync_status_fields
+[13:43:05]   PASS: ui_singularity_status_fields
+[13:43:05]   PASS: ui_evolution_fields
+[13:43:05]   PASS: ui_pillar_grouping
+[13:43:05]   PASS: ui_normalized_files
+[13:43:05]   PASS: ui_learn_endpoint
+[13:43:05] 
+Round 1: 42/42 passed, 0 failed
+[13:43:05] 
+ALL 42 TESTS PASSED!
+[13:43:05] 
+============================================================
+[13:43:05] FINAL RESULTS
+[13:43:05] ============================================================
+[13:43:05]   api_memory_search_fields                 PASS
+[13:43:05]   api_memory_stats                         PASS
+[13:43:05]   api_persona_ask                          PASS
+[13:43:05]   api_persona_dimensions                   PASS
+[13:43:05]   api_persona_evolution                    PASS
+[13:43:05]   api_routes_registered                    PASS
+[13:43:05]   api_sync_status                          PASS
+[13:43:05]   chunker_conversations                    PASS
+[13:43:05]   chunker_metadata                         PASS
+[13:43:05]   classifier_keyword_based                 PASS
+[13:43:05]   classifier_multi_match                   PASS
+[13:43:05]   classifier_pillar_based                  PASS
+[13:43:05]   classifier_type_based                    PASS
+[13:43:05]   classifier_unclassifiable                PASS
+[13:43:05]   config_constants                         PASS
+[13:43:05]   connectors_all                           PASS
+[13:43:05]   daily_loop_init                          PASS
+[13:43:05]   daily_loop_status                        PASS
+[13:43:05]   dimensions_registry                      PASS
+[13:43:05]   engine_init                              PASS
+[13:43:05]   engine_learn                             PASS
+[13:43:05]   engine_search_memory                     PASS
+[13:43:05]   parsers_gemini_html                      PASS
+[13:43:05]   parsers_youtube                          PASS
+[13:43:05]   persona_dimension_dataclass              PASS
+[13:43:05]   profile_dimensions                       PASS
+[13:43:05]   profile_load                             PASS
+[13:43:05]   profile_migration                        PASS
+[13:43:05]   profile_save_load_roundtrip              PASS
+[13:43:05]   profile_snapshot                         PASS
+[13:43:05]   prompts_templates                        PASS
+[13:43:05]   ui_evolution_fields                      PASS
+[13:43:05]   ui_learn_endpoint                        PASS
+[13:43:05]   ui_normalized_files                      PASS
+[13:43:05]   ui_persona_dimensions_fields             PASS
+[13:43:05]   ui_pillar_grouping                       PASS
+[13:43:05]   ui_singularity_status_fields             PASS
+[13:43:05]   ui_sync_status_fields                    PASS
+[13:43:05]   ui_syntax                                PASS
+[13:43:05]   vectorstore_count_by_dimension           PASS
+[13:43:05]   vectorstore_get_unclassified             PASS
+[13:43:05]   vectorstore_search_by_dimension          PASS
+[13:43:05] 
+  TOTAL: 42 passed, 0 failed out of 42
+[13:46:01] 
+============================================================
+[13:46:01] AI Twin Test Suite — 42 tests
+[13:46:01] ============================================================
+[13:46:01] 
+--- Round 1/3 ---
+[13:46:03]   PASS: dimensions_registry
+[13:46:03]   PASS: persona_dimension_dataclass
+[13:46:03]   PASS: classifier_type_based
+[13:46:03]   PASS: classifier_pillar_based
+[13:46:03]   PASS: classifier_keyword_based
+[13:46:03]   PASS: classifier_multi_match
+[13:46:03]   PASS: classifier_unclassifiable
+[13:46:03]   PASS: chunker_metadata
+[13:46:03]   PASS: chunker_conversations
+[13:46:06]   PASS: vectorstore_search_by_dimension
+[13:46:06]   PASS: vectorstore_get_unclassified
+[13:46:06]   PASS: vectorstore_count_by_dimension
+[13:46:06]   PASS: profile_load
+[13:46:06]   PASS: profile_dimensions
+[13:46:06]   PASS: profile_save_load_roundtrip
+[13:46:06]   PASS: profile_snapshot
+[13:46:06]   PASS: profile_migration
+[13:46:06]   PASS: engine_init
+[13:46:07]   PASS: engine_learn
+[13:46:09]   PASS: engine_search_memory
+[13:46:09]   PASS: prompts_templates
+[13:46:09]   PASS: config_constants
+[13:46:09]   PASS: daily_loop_init
+[13:46:12]   PASS: daily_loop_status
+[13:46:12]   PASS: api_routes_registered
+[13:46:12]   PASS: api_memory_stats
+[13:46:14]   PASS: api_memory_search_fields
+[13:46:14]   PASS: api_persona_dimensions
+[13:46:14]   PASS: api_sync_status
+[13:46:14]   PASS: api_persona_evolution
+[13:46:14]   PASS: api_persona_ask
+[13:46:14]   PASS: parsers_gemini_html
+[13:46:14]   PASS: parsers_youtube
+[13:46:14]   PASS: connectors_all
+[13:46:14]   PASS: ui_syntax
+[13:46:14]   PASS: ui_persona_dimensions_fields
+[13:46:14]   PASS: ui_sync_status_fields
+[13:46:14]   PASS: ui_singularity_status_fields
+[13:46:14]   PASS: ui_evolution_fields
+[13:46:14]   PASS: ui_pillar_grouping
+[13:46:14]   PASS: ui_normalized_files
+[13:46:14]   PASS: ui_learn_endpoint
+[13:46:14] 
+Round 1: 42/42 passed, 0 failed
+[13:46:14] 
+ALL 42 TESTS PASSED!
+[13:46:14] 
+============================================================
+[13:46:14] FINAL RESULTS
+[13:46:14] ============================================================
+[13:46:14]   api_memory_search_fields                 PASS
+[13:46:14]   api_memory_stats                         PASS
+[13:46:14]   api_persona_ask                          PASS
+[13:46:14]   api_persona_dimensions                   PASS
+[13:46:14]   api_persona_evolution                    PASS
+[13:46:14]   api_routes_registered                    PASS
+[13:46:14]   api_sync_status                          PASS
+[13:46:14]   chunker_conversations                    PASS
+[13:46:14]   chunker_metadata                         PASS
+[13:46:14]   classifier_keyword_based                 PASS
+[13:46:14]   classifier_multi_match                   PASS
+[13:46:14]   classifier_pillar_based                  PASS
+[13:46:14]   classifier_type_based                    PASS
+[13:46:14]   classifier_unclassifiable                PASS
+[13:46:14]   config_constants                         PASS
+[13:46:14]   connectors_all                           PASS
+[13:46:14]   daily_loop_init                          PASS
+[13:46:14]   daily_loop_status                        PASS
+[13:46:14]   dimensions_registry                      PASS
+[13:46:14]   engine_init                              PASS
+[13:46:14]   engine_learn                             PASS
+[13:46:14]   engine_search_memory                     PASS
+[13:46:14]   parsers_gemini_html                      PASS
+[13:46:14]   parsers_youtube                          PASS
+[13:46:14]   persona_dimension_dataclass              PASS
+[13:46:14]   profile_dimensions                       PASS
+[13:46:14]   profile_load                             PASS
+[13:46:14]   profile_migration                        PASS
+[13:46:14]   profile_save_load_roundtrip              PASS
+[13:46:14]   profile_snapshot                         PASS
+[13:46:14]   prompts_templates                        PASS
+[13:46:14]   ui_evolution_fields                      PASS
+[13:46:14]   ui_learn_endpoint                        PASS
+[13:46:14]   ui_normalized_files                      PASS
+[13:46:14]   ui_persona_dimensions_fields             PASS
+[13:46:14]   ui_pillar_grouping                       PASS
+[13:46:14]   ui_singularity_status_fields             PASS
+[13:46:14]   ui_sync_status_fields                    PASS
+[13:46:14]   ui_syntax                                PASS
+[13:46:14]   vectorstore_count_by_dimension           PASS
+[13:46:14]   vectorstore_get_unclassified             PASS
+[13:46:14]   vectorstore_search_by_dimension          PASS
+[13:46:14] 
+  TOTAL: 42 passed, 0 failed out of 42
+[13:46:22] 
+============================================================
+[13:46:22] AI Twin Test Suite — 42 tests
+[13:46:22] ============================================================
+[13:46:22] 
+--- Round 1/3 ---
+[13:46:24]   PASS: dimensions_registry
+[13:46:24]   PASS: persona_dimension_dataclass
+[13:46:24]   PASS: classifier_type_based
+[13:46:24]   PASS: classifier_pillar_based
+[13:46:24]   PASS: classifier_keyword_based
+[13:46:24]   PASS: classifier_multi_match
+[13:46:24]   PASS: classifier_unclassifiable
+[13:46:24]   PASS: chunker_metadata
+[13:46:24]   PASS: chunker_conversations
+[13:46:26]   PASS: vectorstore_search_by_dimension
+[13:46:26]   PASS: vectorstore_get_unclassified
+[13:46:26]   PASS: vectorstore_count_by_dimension
+[13:46:26]   PASS: profile_load
+[13:46:26]   PASS: profile_dimensions
+[13:46:26]   PASS: profile_save_load_roundtrip
+[13:46:26]   PASS: profile_snapshot
+[13:46:26]   PASS: profile_migration
+[13:46:26]   PASS: engine_init
+[13:46:28]   PASS: engine_learn
+[13:46:29]   PASS: engine_search_memory
+[13:46:29]   PASS: prompts_templates
+[13:46:29]   PASS: config_constants
+[13:46:29]   PASS: daily_loop_init
+[13:46:33]   PASS: daily_loop_status
+[13:46:33]   PASS: api_routes_registered
+[13:46:33]   PASS: api_memory_stats
+[13:46:35]   PASS: api_memory_search_fields
+[13:46:35]   PASS: api_persona_dimensions
+[13:46:35]   PASS: api_sync_status
+[13:46:35]   PASS: api_persona_evolution
+[13:46:35]   PASS: api_persona_ask
+[13:46:35]   PASS: parsers_gemini_html
+[13:46:35]   PASS: parsers_youtube
+[13:46:35]   PASS: connectors_all
+[13:46:35]   PASS: ui_syntax
+[13:46:35]   PASS: ui_persona_dimensions_fields
+[13:46:35]   PASS: ui_sync_status_fields
+[13:46:35]   PASS: ui_singularity_status_fields
+[13:46:35]   PASS: ui_evolution_fields
+[13:46:35]   PASS: ui_pillar_grouping
+[13:46:35]   PASS: ui_normalized_files
+[13:46:35]   PASS: ui_learn_endpoint
+[13:46:35] 
+Round 1: 42/42 passed, 0 failed
+[13:46:35] 
+ALL 42 TESTS PASSED!
+[13:46:35] 
+============================================================
+[13:46:35] FINAL RESULTS
+[13:46:35] ============================================================
+[13:46:35]   api_memory_search_fields                 PASS
+[13:46:35]   api_memory_stats                         PASS
+[13:46:35]   api_persona_ask                          PASS
+[13:46:35]   api_persona_dimensions                   PASS
+[13:46:35]   api_persona_evolution                    PASS
+[13:46:35]   api_routes_registered                    PASS
+[13:46:35]   api_sync_status                          PASS
+[13:46:35]   chunker_conversations                    PASS
+[13:46:35]   chunker_metadata                         PASS
+[13:46:35]   classifier_keyword_based                 PASS
+[13:46:35]   classifier_multi_match                   PASS
+[13:46:35]   classifier_pillar_based                  PASS
+[13:46:35]   classifier_type_based                    PASS
+[13:46:35]   classifier_unclassifiable                PASS
+[13:46:35]   config_constants                         PASS
+[13:46:35]   connectors_all                           PASS
+[13:46:35]   daily_loop_init                          PASS
+[13:46:35]   daily_loop_status                        PASS
+[13:46:35]   dimensions_registry                      PASS
+[13:46:35]   engine_init                              PASS
+[13:46:35]   engine_learn                             PASS
+[13:46:35]   engine_search_memory                     PASS
+[13:46:35]   parsers_gemini_html                      PASS
+[13:46:35]   parsers_youtube                          PASS
+[13:46:35]   persona_dimension_dataclass              PASS
+[13:46:35]   profile_dimensions                       PASS
+[13:46:35]   profile_load                             PASS
+[13:46:35]   profile_migration                        PASS
+[13:46:35]   profile_save_load_roundtrip              PASS
+[13:46:35]   profile_snapshot                         PASS
+[13:46:35]   prompts_templates                        PASS
+[13:46:35]   ui_evolution_fields                      PASS
+[13:46:35]   ui_learn_endpoint                        PASS
+[13:46:35]   ui_normalized_files                      PASS
+[13:46:35]   ui_persona_dimensions_fields             PASS
+[13:46:35]   ui_pillar_grouping                       PASS
+[13:46:35]   ui_singularity_status_fields             PASS
+[13:46:35]   ui_sync_status_fields                    PASS
+[13:46:35]   ui_syntax                                PASS
+[13:46:35]   vectorstore_count_by_dimension           PASS
+[13:46:35]   vectorstore_get_unclassified             PASS
+[13:46:35]   vectorstore_search_by_dimension          PASS
+[13:46:35] 
+  TOTAL: 42 passed, 0 failed out of 42
+[15:12:41] 
+============================================================
+[15:12:41] AI Twin Test Suite — 42 tests
+[15:12:41] ============================================================
+[15:12:41] 
+--- Round 1/3 ---
+[15:12:44]   PASS: dimensions_registry
+[15:12:44]   PASS: persona_dimension_dataclass
+[15:12:44]   PASS: classifier_type_based
+[15:12:44]   PASS: classifier_pillar_based
+[15:12:44]   PASS: classifier_keyword_based
+[15:12:44]   PASS: classifier_multi_match
+[15:12:44]   PASS: classifier_unclassifiable
+[15:12:44]   PASS: chunker_metadata
+[15:12:44]   PASS: chunker_conversations
+[15:12:47]   PASS: vectorstore_search_by_dimension
+[15:12:47]   PASS: vectorstore_get_unclassified
+[15:12:47]   PASS: vectorstore_count_by_dimension
+[15:12:47]   PASS: profile_load
+[15:12:47]   PASS: profile_dimensions
+[15:12:47]   PASS: profile_save_load_roundtrip
+[15:12:47]   PASS: profile_snapshot
+[15:12:47]   PASS: profile_migration
+[15:12:47]   PASS: engine_init
+[15:12:50]   PASS: engine_learn
+[15:12:51]   PASS: engine_search_memory
+[15:12:51]   PASS: prompts_templates
+[15:12:51]   PASS: config_constants
+[15:12:51]   PASS: daily_loop_init
+[15:12:56]   PASS: daily_loop_status
+[15:12:56]   PASS: api_routes_registered
+[15:12:56]   PASS: api_memory_stats
+[15:12:58]   PASS: api_memory_search_fields
+[15:12:58]   PASS: api_persona_dimensions
+[15:12:58]   PASS: api_sync_status
+[15:12:58]   PASS: api_persona_evolution
+[15:12:58]   PASS: api_persona_ask
+[15:12:58]   PASS: parsers_gemini_html
+[15:12:58]   PASS: parsers_youtube
+[15:12:58]   PASS: connectors_all
+[15:12:58]   PASS: ui_syntax
+[15:12:58]   PASS: ui_persona_dimensions_fields
+[15:12:58]   PASS: ui_sync_status_fields
+[15:12:58]   PASS: ui_singularity_status_fields
+[15:12:58]   PASS: ui_evolution_fields
+[15:12:58]   PASS: ui_pillar_grouping
+[15:12:58]   PASS: ui_normalized_files
+[15:12:58]   PASS: ui_learn_endpoint
+[15:12:58] 
+Round 1: 42/42 passed, 0 failed
+[15:12:58] 
+ALL 42 TESTS PASSED!
+[15:12:58] 
+============================================================
+[15:12:58] FINAL RESULTS
+[15:12:58] ============================================================
+[15:12:58]   api_memory_search_fields                 PASS
+[15:12:58]   api_memory_stats                         PASS
+[15:12:58]   api_persona_ask                          PASS
+[15:12:58]   api_persona_dimensions                   PASS
+[15:12:58]   api_persona_evolution                    PASS
+[15:12:58]   api_routes_registered                    PASS
+[15:12:58]   api_sync_status                          PASS
+[15:12:58]   chunker_conversations                    PASS
+[15:12:58]   chunker_metadata                         PASS
+[15:12:58]   classifier_keyword_based                 PASS
+[15:12:58]   classifier_multi_match                   PASS
+[15:12:58]   classifier_pillar_based                  PASS
+[15:12:58]   classifier_type_based                    PASS
+[15:12:58]   classifier_unclassifiable                PASS
+[15:12:58]   config_constants                         PASS
+[15:12:58]   connectors_all                           PASS
+[15:12:58]   daily_loop_init                          PASS
+[15:12:58]   daily_loop_status                        PASS
+[15:12:58]   dimensions_registry                      PASS
+[15:12:58]   engine_init                              PASS
+[15:12:58]   engine_learn                             PASS
+[15:12:58]   engine_search_memory                     PASS
+[15:12:58]   parsers_gemini_html                      PASS
+[15:12:58]   parsers_youtube                          PASS
+[15:12:58]   persona_dimension_dataclass              PASS
+[15:12:58]   profile_dimensions                       PASS
+[15:12:58]   profile_load                             PASS
+[15:12:58]   profile_migration                        PASS
+[15:12:58]   profile_save_load_roundtrip              PASS
+[15:12:58]   profile_snapshot                         PASS
+[15:12:58]   prompts_templates                        PASS
+[15:12:58]   ui_evolution_fields                      PASS
+[15:12:58]   ui_learn_endpoint                        PASS
+[15:12:58]   ui_normalized_files                      PASS
+[15:12:58]   ui_persona_dimensions_fields             PASS
+[15:12:58]   ui_pillar_grouping                       PASS
+[15:12:58]   ui_singularity_status_fields             PASS
+[15:12:58]   ui_sync_status_fields                    PASS
+[15:12:58]   ui_syntax                                PASS
+[15:12:58]   vectorstore_count_by_dimension           PASS
+[15:12:58]   vectorstore_get_unclassified             PASS
+[15:12:58]   vectorstore_search_by_dimension          PASS
+[15:12:58] 
+  TOTAL: 42 passed, 0 failed out of 42
+[15:49:06] 
+============================================================
+[15:49:06] AI Twin Test Suite — 42 tests
+[15:49:06] ============================================================
+[15:49:06] 
+--- Round 1/3 ---
+[15:49:09]   PASS: dimensions_registry
+[15:49:09]   PASS: persona_dimension_dataclass
+[15:49:09]   PASS: classifier_type_based
+[15:49:09]   PASS: classifier_pillar_based
+[15:49:09]   PASS: classifier_keyword_based
+[15:49:09]   PASS: classifier_multi_match
+[15:49:09]   PASS: classifier_unclassifiable
+[15:49:09]   PASS: chunker_metadata
+[15:49:09]   PASS: chunker_conversations
+[15:49:11]   PASS: vectorstore_search_by_dimension
+[15:49:11]   PASS: vectorstore_get_unclassified
+[15:49:11]   PASS: vectorstore_count_by_dimension
+[15:49:11]   PASS: profile_load
+[15:49:11]   PASS: profile_dimensions
+[15:49:11]   PASS: profile_save_load_roundtrip
+[15:49:11]   PASS: profile_snapshot
+[15:49:11]   PASS: profile_migration
+[15:49:11]   PASS: engine_init
+[15:49:13]   PASS: engine_learn
+[15:49:15]   PASS: engine_search_memory
+[15:49:15]   PASS: prompts_templates
+[15:49:15]   PASS: config_constants
+[15:49:15]   PASS: daily_loop_init
+[15:49:18]   PASS: daily_loop_status
+[15:49:18]   PASS: api_routes_registered
+[15:49:18]   PASS: api_memory_stats
+[15:49:20]   PASS: api_memory_search_fields
+[15:49:20]   PASS: api_persona_dimensions
+[15:49:20]   PASS: api_sync_status
+[15:49:20]   PASS: api_persona_evolution
+[15:49:20]   PASS: api_persona_ask
+[15:49:20]   PASS: parsers_gemini_html
+[15:49:20]   PASS: parsers_youtube
+[15:49:20]   PASS: connectors_all
+[15:49:20]   PASS: ui_syntax
+[15:49:20]   PASS: ui_persona_dimensions_fields
+[15:49:20]   PASS: ui_sync_status_fields
+[15:49:20]   PASS: ui_singularity_status_fields
+[15:49:20]   PASS: ui_evolution_fields
+[15:49:20]   PASS: ui_pillar_grouping
+[15:49:20]   PASS: ui_normalized_files
+[15:49:20]   PASS: ui_learn_endpoint
+[15:49:20] 
+Round 1: 42/42 passed, 0 failed
+[15:49:20] 
+ALL 42 TESTS PASSED!
+[15:49:20] 
+============================================================
+[15:49:20] FINAL RESULTS
+[15:49:20] ============================================================
+[15:49:20]   api_memory_search_fields                 PASS
+[15:49:20]   api_memory_stats                         PASS
+[15:49:20]   api_persona_ask                          PASS
+[15:49:20]   api_persona_dimensions                   PASS
+[15:49:20]   api_persona_evolution                    PASS
+[15:49:20]   api_routes_registered                    PASS
+[15:49:20]   api_sync_status                          PASS
+[15:49:20]   chunker_conversations                    PASS
+[15:49:20]   chunker_metadata                         PASS
+[15:49:20]   classifier_keyword_based                 PASS
+[15:49:20]   classifier_multi_match                   PASS
+[15:49:20]   classifier_pillar_based                  PASS
+[15:49:20]   classifier_type_based                    PASS
+[15:49:20]   classifier_unclassifiable                PASS
+[15:49:20]   config_constants                         PASS
+[15:49:20]   connectors_all                           PASS
+[15:49:20]   daily_loop_init                          PASS
+[15:49:20]   daily_loop_status                        PASS
+[15:49:20]   dimensions_registry                      PASS
+[15:49:20]   engine_init                              PASS
+[15:49:20]   engine_learn                             PASS
+[15:49:20]   engine_search_memory                     PASS
+[15:49:20]   parsers_gemini_html                      PASS
+[15:49:20]   parsers_youtube                          PASS
+[15:49:20]   persona_dimension_dataclass              PASS
+[15:49:20]   profile_dimensions                       PASS
+[15:49:20]   profile_load                             PASS
+[15:49:20]   profile_migration                        PASS
+[15:49:20]   profile_save_load_roundtrip              PASS
+[15:49:20]   profile_snapshot                         PASS
+[15:49:20]   prompts_templates                        PASS
+[15:49:20]   ui_evolution_fields                      PASS
+[15:49:20]   ui_learn_endpoint                        PASS
+[15:49:20]   ui_normalized_files                      PASS
+[15:49:20]   ui_persona_dimensions_fields             PASS
+[15:49:20]   ui_pillar_grouping                       PASS
+[15:49:20]   ui_singularity_status_fields             PASS
+[15:49:20]   ui_sync_status_fields                    PASS
+[15:49:20]   ui_syntax                                PASS
+[15:49:20]   vectorstore_count_by_dimension           PASS
+[15:49:20]   vectorstore_get_unclassified             PASS
+[15:49:20]   vectorstore_search_by_dimension          PASS
+[15:49:20] 
+  TOTAL: 42 passed, 0 failed out of 42

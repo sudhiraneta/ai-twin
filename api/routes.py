@@ -427,6 +427,55 @@ def ask_persona(req: AskPersonaRequest):
     return {"answer": answer}
 
 
+# --- Skill Files (read/write) ---
+
+@router.get("/persona/skills")
+def list_skill_files():
+    """List all skill files with their content."""
+    from persona.skills import read_all_skill_files, DIMENSION_SOURCES
+    from persona.dimensions import DIMENSIONS as DIM_REG
+
+    skills = read_all_skill_files()
+    result = {}
+    for name, content in skills.items():
+        meta = DIM_REG.get(name, {})
+        sources = DIMENSION_SOURCES.get(name, {})
+        result[name] = {
+            "content": content,
+            "pillar": meta.get("pillar", ""),
+            "display": meta.get("display", name),
+            "description": sources.get("description", ""),
+            "user_edited": "<!-- user-edited -->" in content,
+        }
+    return {"skills": result}
+
+
+@router.get("/persona/skills/{name}")
+def get_skill_file(name: str):
+    """Read a single skill file."""
+    from persona.skills import read_skill_file
+    content = read_skill_file(name)
+    if content is None:
+        return {"error": f"Skill file not found: {name}"}
+    return {"name": name, "content": content}
+
+
+class SkillFileUpdate(BaseModel):
+    content: str
+
+
+@router.put("/persona/skills/{name}")
+def update_skill_file(name: str, req: SkillFileUpdate):
+    """Update a skill file (user edit). Marks as user-edited so auto-regen preserves changes."""
+    from persona.skills import write_skill_file
+    success = write_skill_file(name, req.content)
+    if success:
+        twin = get_twin()
+        twin.reload_persona()
+        return {"status": "saved", "name": name}
+    return {"error": "Failed to save"}
+
+
 # --- Wardrobe (Google Photos) ---
 
 @router.post("/wardrobe/sync")

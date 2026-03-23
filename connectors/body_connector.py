@@ -1,104 +1,174 @@
-import sys
-from datetime import datetime, timedelta
+import sqlite3
+from datetime import datetime, timezone
 
-from config import SINGULARITY_AGENT_DIR
+from config import SINGULARITY_DIR
 from memory.chunker import Chunk, _ensure_metadata
 from .base import BaseConnector
 
+WEEKLY_STATS_DB = SINGULARITY_DIR / "logs" / "weekly_stats.db"
+
 
 class BodyConnector(BaseConnector):
-    """Connector for gym and nutrition data via Singularity's body_tracker."""
+    """Connector for gym, nutrition, and wellness data from Singularity's weekly_stats.db."""
 
     source_name = "body"
 
-    def _import_tracker(self):
-        if str(SINGULARITY_AGENT_DIR) not in sys.path:
-            sys.path.insert(0, str(SINGULARITY_AGENT_DIR))
-        import body_tracker
-        return body_tracker
+    def fetch(self, since: float | None = None, days_back: int = 30) -> list[Chunk]:
+        if not WEEKLY_STATS_DB.exists():
+            print(f"  weekly_stats.db not found at {WEEKLY_STATS_DB}")
+            return []
 
-    def fetch(self, since: float | None = None, days_back: int = 14) -> list[Chunk]:
-        tracker = self._import_tracker()
-
-        data = tracker.analyse_notes(days=days_back)
-        nutrition = tracker.analyse_nutrition(days=days_back)
-
+        conn = sqlite3.connect(str(WEEKLY_STATS_DB))
+        conn.row_factory = sqlite3.Row
         chunks = []
-        week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime("%Y-%m-%d")
 
-        # Gym summary chunk
-        gym_days = [d for d, v in data.items() if v.get("gym")]
-        gym_count = len(gym_days)
-        gym_lines = [
-            f"Gym Tracker: Week of {week_start}",
-            f"Sessions: {gym_count}/4 target",
-        ]
-        if gym_days:
-            gym_lines.append(f"Gym days: {', '.join(sorted(gym_days))}")
-        if gym_count >= 4:
-            gym_lines.append("Hit 4x this week.")
+        # --- Gym sessions ---
+        if since:
+            since_str = datetime.fromtimestamp(since, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            gym_rows = conn.execute(
+                "SELECT * FROM gym WHERE logged_at > ? ORDER BY logged_at DESC", (since_str,)
+            ).fetchall()
         else:
-            gym_lines.append(f"{4 - gym_count} sessions left to hit 4x.")
+            gym_rows = conn.execute(
+                "SELECT * FROM gym ORDER BY logged_at DESC LIMIT 50"
+            ).fetchall()
 
-        chunks.append(Chunk(
-            text="\n".join(gym_lines),
-            metadata=_ensure_metadata({
-                "source": self.source_name,
-                "conversation_id": f"body_gym_{week_start}",
-                "title": f"Gym week of {week_start}",
-                "timestamp": f"{week_start}T00:00:00+00:00",
-                "msg_timestamp": f"{week_start}T00:00:00+00:00",
-                "role": "user",
-                "type": "body_gym",
-                "pillar": "BODY",
-                "dimension": "wellness",
-                "classified": "true",
-            }),
-        ))
+        # Group gym sessions by week
+        gym_by_week = {}
+        for row in gym_rows:
+            week = row["week_id"]
+            gym_by_week.setdefault(week, []).append(dict(row))
 
-        # Nutrition summary chunk
-        scores = nutrition.get("scores", {})
-        nut_lines = [
-            f"Nutrition: Week of {week_start}",
-            f"Overall score: {scores.get('Overall', 0)}/10",
-        ]
-        if nutrition.get("veggies"):
-            nut_lines.append(f"Veggies: {', '.join(nutrition['veggies'])}")
-        if nutrition.get("proteins"):
-            nut_lines.append(f"Protein: {', '.join(nutrition['proteins'])}")
-        if nutrition.get("carbs"):
-            nut_lines.append(f"Carbs: {', '.join(nutrition['carbs'])}")
-        if nutrition.get("fats"):
-            nut_lines.append(f"Fats: {', '.join(nutrition['fats'])}")
-        if nutrition.get("cheats"):
-            nut_lines.append(f"Cheats: {', '.join(nutrition['cheats'])}")
-        nut_lines.append(f"Hydration: {'yes' if nutrition.get('hydrated') else 'not logged'}")
+        for week_id, sessions in gym_by_week.items():
+            days = [s["week_day"] for s in sessions]
+            count = len(sessions)
+            notes = [s["notes"] for s in sessions if s.get("notes")]
 
-        # Hair protocol
-        hair = nutrition.get("hair_meds", {})
-        hair_status = [f"{med}: {'yes' if found else 'no'}" for med, found in hair.items()]
-        if hair_status:
-            nut_lines.append(f"Hair protocol: {', '.join(hair_status)}")
+            text_lines = [
+                f"Gym Tracker: {week_id}",
+                f"Sessions: {count}/4 target",
+                f"Days: {', '.join(days)}",
+            ]
+            if count >= 4:
+                text_lines.append("Hit 4x gym target this week!")
+            else:
+                text_lines.append(f"{4 - count} sessions left to hit 4x.")
+            if notes:
+                text_lines.append(f"Notes: {'; '.join(notes[:3])}")
 
-        # Red flags
-        flags = nutrition.get("red_flags", [])
-        if flags:
-            nut_lines.append(f"Red flags: {'; '.join(flags)}")
+            logged_at = sessions[0].get("logged_at", "")
 
-        chunks.append(Chunk(
-            text="\n".join(nut_lines),
-            metadata=_ensure_metadata({
-                "source": self.source_name,
-                "conversation_id": f"body_nutrition_{week_start}",
-                "title": f"Nutrition week of {week_start}",
-                "timestamp": f"{week_start}T00:00:00+00:00",
-                "msg_timestamp": f"{week_start}T00:00:00+00:00",
-                "role": "user",
-                "type": "body_nutrition",
-                "pillar": "BODY",
-                "dimension": "nutrition",
-                "classified": "true",
-            }),
-        ))
+            chunks.append(Chunk(
+                text="\n".join(text_lines),
+                metadata=_ensure_metadata({
+                    "source": self.source_name,
+                    "conversation_id": f"gym_{week_id}",
+                    "title": f"Gym {week_id}",
+                    "timestamp": logged_at,
+                    "msg_timestamp": logged_at,
+                    "role": "user",
+                    "type": "body_gym",
+                    "pillar": "BODY",
+                    "dimension": "wellness",
+                    "classified": "true",
+                }),
+            ))
 
+        # --- Nutrition ---
+        if since:
+            nut_rows = conn.execute(
+                "SELECT * FROM nutrition WHERE logged_at > ? ORDER BY logged_at DESC", (since_str,)
+            ).fetchall()
+        else:
+            nut_rows = conn.execute(
+                "SELECT * FROM nutrition ORDER BY logged_at DESC LIMIT 20"
+            ).fetchall()
+
+        nut_by_week = {}
+        for row in nut_rows:
+            week = row["week_id"]
+            nut_by_week.setdefault(week, []).append(dict(row))
+
+        for week_id, entries in nut_by_week.items():
+            text_lines = [f"Nutrition: {week_id}"]
+            for entry in entries:
+                day = entry.get("week_day", "?")
+                source = entry.get("meal_source", "?")
+                deficit = entry.get("calorie_deficit", "?")
+                notes_raw = entry.get("notes", "")
+
+                text_lines.append(f"  {day}: {source} meal, deficit={deficit}")
+
+                # Parse JSON notes if present
+                if notes_raw and notes_raw.startswith("{"):
+                    try:
+                        import json
+                        data = json.loads(notes_raw)
+                        for key in ["veggies", "protein", "carbs", "cheats"]:
+                            items = data.get(key, [])
+                            if items:
+                                text_lines.append(f"    {key.title()}: {', '.join(items)}")
+                    except Exception:
+                        text_lines.append(f"    {notes_raw[:100]}")
+
+            logged_at = entries[0].get("logged_at", "")
+
+            chunks.append(Chunk(
+                text="\n".join(text_lines),
+                metadata=_ensure_metadata({
+                    "source": self.source_name,
+                    "conversation_id": f"nutrition_{week_id}",
+                    "title": f"Nutrition {week_id}",
+                    "timestamp": logged_at,
+                    "msg_timestamp": logged_at,
+                    "role": "user",
+                    "type": "body_nutrition",
+                    "pillar": "BODY",
+                    "dimension": "nutrition",
+                    "classified": "true",
+                }),
+            ))
+
+        # --- Wellness (journaling, sleep, phone off, etc.) ---
+        if since:
+            well_rows = conn.execute(
+                "SELECT * FROM wellness WHERE logged_at > ? ORDER BY logged_at DESC", (since_str,)
+            ).fetchall()
+        else:
+            well_rows = conn.execute(
+                "SELECT * FROM wellness ORDER BY logged_at DESC LIMIT 30"
+            ).fetchall()
+
+        well_by_week = {}
+        for row in well_rows:
+            week = row["week_id"]
+            well_by_week.setdefault(week, []).append(dict(row))
+
+        for week_id, entries in well_by_week.items():
+            text_lines = [f"Wellness Habits: {week_id}"]
+            for entry in entries:
+                task = entry.get("task_id", "?")
+                days_done = entry.get("days_done", 0)
+                notes = entry.get("notes", "")
+                text_lines.append(f"  {task}: {days_done} days ({notes})")
+
+            logged_at = entries[0].get("logged_at", "")
+
+            chunks.append(Chunk(
+                text="\n".join(text_lines),
+                metadata=_ensure_metadata({
+                    "source": self.source_name,
+                    "conversation_id": f"wellness_{week_id}",
+                    "title": f"Wellness {week_id}",
+                    "timestamp": logged_at,
+                    "msg_timestamp": logged_at,
+                    "role": "user",
+                    "type": "body_wellness",
+                    "pillar": "BODY",
+                    "dimension": "wellness",
+                    "classified": "true",
+                }),
+            ))
+
+        conn.close()
         return chunks

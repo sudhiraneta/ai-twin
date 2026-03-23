@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Daily learning loop: sync → classify → update persona → snapshot.
+"""Daily learning loop: sync → classify → cluster → update persona → snapshot.
 
 Usage:
     python daily_loop.py                      # incremental daily loop
     python daily_loop.py --full               # full re-extraction of all dimensions
     python daily_loop.py --sync-only          # just sync connectors, no persona update
     python daily_loop.py --classify-only      # just classify unclassified chunks
+    python daily_loop.py --cluster-only       # just run document clustering
     python daily_loop.py --dimension code     # update only one dimension
     python daily_loop.py --status             # show sync state and dimension health
+    python daily_loop.py --schedule           # run twice-daily at 8am and 8pm (blocks)
 """
 
 import argparse
@@ -37,7 +39,7 @@ class DailyLoop:
         self.classifier = ChunkClassifier()
         self.extractor = PersonaExtractor()
 
-    def run(self, full: bool = False) -> dict:
+    def run(self, full: bool = False, cluster: bool = True) -> dict:
         """Execute the full daily learning loop."""
         start = time.time()
         results = {"timestamp": datetime.now(tz=timezone.utc).isoformat()}
@@ -47,31 +49,39 @@ class DailyLoop:
         print("=" * 60)
 
         # Step 1: Sync all connectors
-        print("\n[1/5] Syncing data sources...")
+        print("\n[1/6] Syncing data sources...")
         results["sync"] = self._sync_all_sources()
 
         # Step 2: Classify unclassified chunks
-        print("\n[2/5] Classifying new chunks...")
+        print("\n[2/6] Classifying new chunks...")
         results["classify"] = self._classify_new_chunks()
 
-        # Step 3: Detect changed dimensions
-        print("\n[3/5] Detecting changed dimensions...")
+        # Step 3: Cluster documents by context
+        if cluster:
+            print("\n[3/6] Clustering documents by context...")
+            results["cluster"] = self._cluster_documents()
+        else:
+            print("\n[3/6] Clustering skipped.")
+            results["cluster"] = {"status": "skipped"}
+
+        # Step 4: Detect changed dimensions
+        print("\n[4/6] Detecting changed dimensions...")
         changed_dims = self._detect_changed_dimensions()
         results["changed_dimensions"] = changed_dims
 
-        # Step 4: Update persona
+        # Step 5: Update persona
         if full:
-            print("\n[4/5] Full persona extraction (all dimensions)...")
+            print("\n[5/6] Full persona extraction (all dimensions)...")
             results["persona"] = self._full_persona_extraction()
         elif changed_dims:
-            print(f"\n[4/5] Incremental persona update ({len(changed_dims)} dimensions)...")
+            print(f"\n[5/6] Incremental persona update ({len(changed_dims)} dimensions)...")
             results["persona"] = self._incremental_persona_update(changed_dims)
         else:
-            print("\n[4/5] No dimensions changed — skipping persona update.")
+            print("\n[5/6] No dimensions changed — skipping persona update.")
             results["persona"] = {"status": "no_changes"}
 
-        # Step 5: Save evolution snapshot
-        print("\n[5/5] Saving evolution snapshot...")
+        # Step 6: Save evolution snapshot
+        print("\n[6/6] Saving evolution snapshot...")
         results["snapshot"] = self._save_snapshot()
 
         elapsed = time.time() - start
@@ -184,7 +194,25 @@ class DailyLoop:
         }
 
     # ------------------------------------------------------------------
-    # Step 3: Detect changed dimensions
+    # Step 3: Cluster documents
+    # ------------------------------------------------------------------
+
+    def _cluster_documents(self) -> dict:
+        """Cluster all documents by embedding similarity and label clusters."""
+        from memory.clusterer import DocumentClusterer
+
+        clusterer = DocumentClusterer(self.vector_store)
+        total = self.vector_store.count()
+        if total < 20:
+            print(f"  Too few documents ({total}) for clustering. Skipping.")
+            return {"status": "skipped", "reason": "too_few_documents"}
+
+        result = clusterer.run()
+        print(f"  Clusters: {result['clusters']}, Updated: {result['updated']} chunks.")
+        return result
+
+    # ------------------------------------------------------------------
+    # Step 4: Detect changed dimensions
     # ------------------------------------------------------------------
 
     def _detect_changed_dimensions(self) -> list[str]:
@@ -337,6 +365,56 @@ class DailyLoop:
 # CLI
 # ---------------------------------------------------------------------------
 
+def _run_scheduled(loop: DailyLoop):
+    """Run the daily loop twice daily at 8am and 8pm.
+
+    Blocks forever. Use Ctrl+C to stop.
+    For production, prefer a macOS LaunchAgent or crontab instead.
+    """
+    import sched
+    import calendar
+
+    scheduler = sched.scheduler(time.time, time.sleep)
+
+    def _next_run_time() -> float:
+        """Find the next 8:00 or 20:00 in local time."""
+        now = datetime.now()
+        today_8am = now.replace(hour=8, minute=0, second=0, microsecond=0)
+        today_8pm = now.replace(hour=20, minute=0, second=0, microsecond=0)
+
+        candidates = [today_8am, today_8pm]
+        # Add tomorrow's times
+        from datetime import timedelta
+        tomorrow = now + timedelta(days=1)
+        candidates.append(tomorrow.replace(hour=8, minute=0, second=0, microsecond=0))
+        candidates.append(tomorrow.replace(hour=20, minute=0, second=0, microsecond=0))
+
+        future = [t for t in candidates if t > now]
+        next_time = min(future)
+        return next_time.timestamp()
+
+    def _run_and_reschedule():
+        print(f"\n{'=' * 60}")
+        print(f"Scheduled run — {datetime.now().isoformat()}")
+        try:
+            loop.run(full=False, cluster=True)
+        except Exception as e:
+            print(f"ERROR in scheduled run: {e}")
+        # Schedule next run
+        next_ts = _next_run_time()
+        next_dt = datetime.fromtimestamp(next_ts)
+        print(f"\nNext run scheduled for: {next_dt.strftime('%Y-%m-%d %H:%M')}")
+        scheduler.enterabs(next_ts, 1, _run_and_reschedule)
+
+    # Run once immediately
+    _run_and_reschedule()
+    print("\nScheduler running (8am + 8pm). Press Ctrl+C to stop.")
+    try:
+        scheduler.run()
+    except KeyboardInterrupt:
+        print("\nScheduler stopped.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Twin Daily Learning Loop")
     parser.add_argument("--full", action="store_true", help="Full re-extraction of all dimensions")
@@ -344,12 +422,25 @@ def main():
     parser.add_argument("--classify-only", action="store_true", help="Only classify unclassified chunks")
     parser.add_argument("--dimension", type=str, help="Update a single dimension by name")
     parser.add_argument("--status", action="store_true", help="Show sync and dimension status")
+    parser.add_argument("--cluster-only", action="store_true", help="Only run document clustering")
+    parser.add_argument("--schedule", action="store_true",
+                        help="Run twice-daily at 8am and 8pm (blocks forever)")
 
     args = parser.parse_args()
     loop = DailyLoop()
 
     if args.status:
         DailyLoop.show_status()
+        return
+
+    if args.schedule:
+        _run_scheduled(loop)
+        return
+
+    if args.cluster_only:
+        print("Cluster-only mode...")
+        results = loop._cluster_documents()
+        print(json.dumps(results, indent=2, default=str))
         return
 
     if args.sync_only:

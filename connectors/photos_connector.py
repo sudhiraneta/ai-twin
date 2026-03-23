@@ -33,7 +33,9 @@ class PhotosConnector(BaseConnector):
     source_name = "google_photos"
 
     def authenticate(self):
-        """One-time OAuth flow — opens browser for consent."""
+        """One-time OAuth flow — opens browser for consent.
+        Handles both 'installed' (desktop) and 'web' credential types."""
+        import json as _json
         from google_auth_oauthlib.flow import InstalledAppFlow
 
         if not CREDENTIALS_FILE.exists():
@@ -41,7 +43,28 @@ class PhotosConnector(BaseConnector):
             print("Download OAuth client JSON from Google Cloud Console and save it there.")
             return None
 
-        flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
+        # Check if web or installed credentials
+        cred_data = _json.loads(CREDENTIALS_FILE.read_text())
+
+        if "web" in cred_data and "installed" not in cred_data:
+            # Convert web credentials to installed format for local flow
+            web = cred_data["web"]
+            converted = {"installed": {
+                "client_id": web["client_id"],
+                "project_id": web.get("project_id", ""),
+                "auth_uri": web["auth_uri"],
+                "token_uri": web["token_uri"],
+                "auth_provider_x509_cert_url": web.get("auth_provider_x509_cert_url", ""),
+                "client_secret": web["client_secret"],
+                "redirect_uris": ["http://localhost"],
+            }}
+            # Write converted file for InstalledAppFlow
+            converted_path = CREDENTIALS_FILE.parent / "google_photos_client_converted.json"
+            converted_path.write_text(_json.dumps(converted))
+            flow = InstalledAppFlow.from_client_secrets_file(str(converted_path), SCOPES)
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
+
         creds = flow.run_local_server(port=0)
 
         TOKEN_FILE.write_text(creds.to_json())

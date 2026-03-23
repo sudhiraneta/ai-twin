@@ -10,3 +10,5 @@ venv/
 *.egg-info/
 dist/
 build/
+data/google_photos_client.json
+data/google_photos_client_converted.json

@@ -211,6 +211,27 @@ class VectorStore:
         """Search chunks classified into a specific persona dimension."""
         return self.search(query, n_results, where={"dimension": dimension}, max_distance=max_distance)
 
+    def search_by_cluster(self, query: str, cluster_label: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        """Search chunks within a specific cluster."""
+        return self.search(query, n_results, where={"cluster_label": cluster_label}, max_distance=max_distance)
+
+    def get_cluster_labels(self) -> list[str]:
+        """Get all distinct cluster labels in the collection."""
+        try:
+            result = self.collection.get(
+                where={"cluster_label": {"$ne": ""}},
+                include=["metadatas"],
+                limit=10000,
+            )
+            labels = set()
+            for meta in (result.get("metadatas") or []):
+                label = meta.get("cluster_label", "")
+                if label:
+                    labels.add(label)
+            return sorted(labels)
+        except Exception:
+            return []
+
     def get_unclassified_chunks(self, limit: int = 500) -> dict:
         """Get chunks that haven't been classified yet."""
         return self.collection.get(

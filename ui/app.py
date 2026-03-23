@@ -148,38 +148,37 @@ if page == "Ask Persona":
 
 
 # ======================================================================
-# Persona Page — Multi-Dimensional Skill Files (read-only)
+# Persona Page — Editable Skill Files
 # ======================================================================
 elif page == "Persona":
-    st.title("Your Persona Profile")
-    st.caption(f"How {TWIN_NAME} understands you across 13 life dimensions. Read-only.")
+    st.title("Persona Skill Files")
+    st.caption(f"Each dimension is a live .md file defining who {TWIN_NAME} thinks you are + where to find data. You can edit them.")
 
-    dims_data = api_call("get", "/persona/dimensions")
-    persona = api_call("get", "/persona")
+    # Fetch skill files
+    skills_data = api_call("get", "/persona/skills")
 
-    if dims_data and dims_data.get("dimensions"):
-        dimensions = dims_data["dimensions"]
+    if skills_data and skills_data.get("skills"):
+        skills = skills_data["skills"]
 
-        populated = sum(1 for d in dimensions.values() if d.get("has_traits"))
-        total_evidence = sum(d.get("evidence_count", 0) for d in dimensions.values())
-        avg_confidence = sum(d.get("confidence", 0) for d in dimensions.values() if d.get("has_traits"))
-        if populated > 0:
-            avg_confidence /= populated
+        # Summary metrics
+        populated = sum(1 for s in skills.values() if "No data yet" not in s.get("content", ""))
+        user_edited = sum(1 for s in skills.values() if s.get("user_edited"))
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Dimensions Populated", f"{populated}/13")
-        col2.metric("Total Evidence", f"{total_evidence} chunks")
-        col3.metric("Avg Confidence", f"{avg_confidence:.0%}")
+        col1.metric("Dimensions", f"{populated}/13 populated")
+        col2.metric("User Edited", user_edited)
+        col3.metric("Total Skills", len(skills))
 
         st.markdown("---")
 
+        # Group by pillar
         PILLAR_ORDER = ["MIND", "BODY", "SOUL", "SOCIAL", "PURPOSE"]
         PILLAR_ICONS = {"MIND": "🧠", "BODY": "💪", "SOUL": "🎨", "SOCIAL": "🤝", "PURPOSE": "🎯"}
 
         pillar_groups = {}
-        for dim_name, dim_info in dimensions.items():
-            pillar = dim_info.get("pillar", "OTHER")
-            pillar_groups.setdefault(pillar, []).append((dim_name, dim_info))
+        for name, info in skills.items():
+            pillar = info.get("pillar", "OTHER")
+            pillar_groups.setdefault(pillar, []).append((name, info))
 
         for pillar in PILLAR_ORDER:
             if pillar not in pillar_groups:
@@ -188,53 +187,43 @@ elif page == "Persona":
             icon = PILLAR_ICONS.get(pillar, "")
             st.subheader(f"{icon} {pillar}")
 
-            dims_in_pillar = pillar_groups[pillar]
-            cols = st.columns(len(dims_in_pillar))
+            for dim_name, info in pillar_groups[pillar]:
+                display = info.get("display", dim_name)
+                content = info.get("content", "")
+                description = info.get("description", "")
+                is_edited = info.get("user_edited", False)
 
-            for col, (dim_name, dim_info) in zip(cols, dims_in_pillar):
-                with col:
-                    display = dim_info.get("display_name", dim_name)
-                    confidence = dim_info.get("confidence", 0)
-                    evidence = dim_info.get("evidence_count", 0)
-                    has_traits = dim_info.get("has_traits", False)
-                    updated = dim_info.get("last_updated", "")
+                badge = " (edited)" if is_edited else ""
+                has_data = "No data yet" not in content
 
-                    if has_traits and confidence >= 0.5:
-                        status_color = "🟢"
-                    elif has_traits:
-                        status_color = "🟡"
-                    else:
-                        status_color = "🔴"
+                if has_data:
+                    status = "🟢"
+                else:
+                    status = "🔴"
 
-                    st.markdown(f"**{status_color} {display}**")
-                    st.caption(f"Confidence: {confidence:.0%} | Evidence: {evidence}")
-                    if updated:
-                        st.caption(f"Updated: {updated[:10]}")
+                with st.expander(f"{status} {display}{badge} — {description}"):
+                    # Editable text area
+                    edited = st.text_area(
+                        f"Edit {dim_name}.md",
+                        value=content,
+                        height=400,
+                        key=f"skill_{dim_name}",
+                    )
 
-                    if has_traits:
-                        summary = dim_info.get("summary", "")
-                        if summary:
-                            with st.expander("View traits"):
-                                st.markdown(summary)
-
-        if persona:
-            st.markdown("---")
-            with st.expander("System Prompt"):
-                st.code(persona.get("system_prompt", "Not generated yet"), language=None)
+                    if edited != content:
+                        if st.button(f"Save {dim_name}", key=f"save_{dim_name}"):
+                            result = api_call("put", f"/persona/skills/{dim_name}", json={"content": edited})
+                            if result and result.get("status") == "saved":
+                                st.success(f"Saved! Twin persona updated.")
+                                st.rerun()
 
         st.markdown("---")
-        st.subheader("Persona Evolution")
-        evolution = api_call("get", "/persona/evolution")
-        if evolution and evolution.get("snapshots"):
-            snapshots = evolution["snapshots"]
-            st.caption(f"{len(snapshots)} snapshots recorded")
-            for snap in reversed(snapshots[-5:]):
-                date = snap.get("date", "")
-                dims = snap.get("dimensions", {})
-                pop = sum(1 for d in dims.values() if d.get("traits"))
-                st.write(f"**{date}**: {pop}/13 dimensions populated")
-        else:
-            st.caption("No evolution snapshots yet.")
+
+        # System prompt preview
+        with st.expander("Composed System Prompt (auto-built from all skill files)"):
+            persona = api_call("get", "/persona")
+            if persona:
+                st.code(persona.get("system_prompt", "Not generated yet"), language=None)
 
 
 # ======================================================================
@@ -351,23 +340,6 @@ elif page == "Data":
     else:
         st.info("No imports yet. Go to Learn to import data.")
 
-    st.markdown("---")
-
-    # Dimension coverage
-    st.subheader("Dimension Coverage")
-    if status and status.get("dimensions"):
-        for dim_name, info in sorted(status["dimensions"].items(), key=lambda x: -x[1].get("evidence_count", 0)):
-            display = info.get("display_name", dim_name)
-            evidence = info.get("evidence_count", 0)
-            confidence = info.get("confidence", 0)
-            has_traits = info.get("has_traits", False)
-            bar_value = min(1.0, evidence / 100)
-            status_icon = "🟢" if has_traits and confidence >= 0.5 else "🟡" if has_traits else "🔴"
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.progress(bar_value, text=f"{status_icon} {display}: {evidence} chunks")
-            with col2:
-                st.caption(f"{confidence:.0%}")
 
 
 # ======================================================================
