@@ -78,8 +78,12 @@ if page == "Ask Persona":
             search_results = api_call("post", "/memory/search", json=search_body)
 
         context_chunks = []
+        skill_context = ""
+        matched_dims = []
         if search_results and search_results.get("results"):
             context_chunks = search_results["results"]
+            skill_context = search_results.get("skill_context", "")
+            matched_dims = search_results.get("dimensions", [])
 
         # Build context text for LLM
         context_text = ""
@@ -89,15 +93,17 @@ if page == "Ask Persona":
             dim = meta.get("dimension", "?")
             ts = meta.get("timestamp", "")[:10]
             title = meta.get("title", "")
-            context_text += f"[{source}/{dim} | {title} | {ts}]\n{r['text']}\n\n---\n\n"
+            tier = r.get("_tier", "?")
+            context_text += f"[{source}/{dim} | {title} | {ts} | tier:{tier}]\n{r['text']}\n\n---\n\n"
 
-        # Generate LLM answer using the context
+        # Generate LLM answer using skill context + retrieved data
         llm_answer = ""
         if context_text:
             with st.spinner("Generating answer from context..."):
                 answer_result = api_call("post", "/persona/ask", json={
                     "query": query,
                     "context": context_text,
+                    "skill_context": skill_context,
                 })
                 if answer_result:
                     llm_answer = answer_result.get("answer", "")
@@ -108,6 +114,8 @@ if page == "Ask Persona":
         left, right = st.columns([1, 1])
 
         with left:
+            if matched_dims:
+                st.caption(f"Matched dimensions: **{', '.join(matched_dims)}**")
             st.subheader(f"Fetched Context ({len(context_chunks)} chunks)")
             if context_chunks:
                 for i, r in enumerate(context_chunks):
@@ -131,8 +139,11 @@ if page == "Ask Persona":
                     }
                     icon = TYPE_ICONS.get(mem_type, "📄")
 
-                    with st.expander(f"{icon} #{i+1} [{dim}] {relevance}% — {title[:40] or r['text'][:40]}"):
-                        st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts}")
+                    tier = r.get("_tier", "")
+                    tier_badge = " 🟢" if tier == "primary" else " 🔵" if tier == "secondary" else ""
+
+                    with st.expander(f"{icon} #{i+1} [{dim}] {relevance}%{tier_badge} — {title[:40] or r['text'][:40]}"):
+                        st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts} | Tier: {tier or 'general'}")
                         st.write(r["text"])
             else:
                 st.info("No context found for this query.")
