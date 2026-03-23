@@ -89,19 +89,35 @@ def learn(req: LearnRequest):
 class SearchRequest(BaseModel):
     query: str
     n_results: int = 10
+    dimension: str | None = None
 
 
 @router.post("/memory/search")
 def search_memory(req: SearchRequest):
-    twin = get_twin()
-    results = twin.search_memory(req.query, n_results=req.n_results)
+    """Search memory — optionally filtered by dimension."""
+    if req.dimension:
+        store = get_vector_store()
+        results = store.search_by_dimension(req.query, req.dimension, n_results=req.n_results)
+    else:
+        twin = get_twin()
+        results = twin.search_memory(req.query, n_results=req.n_results)
     return {"results": results}
 
 
 @router.get("/memory/stats")
 def memory_stats():
     store = get_vector_store()
-    return {"total_chunks": store.count()}
+
+    # Count by dimension
+    from persona.dimensions import DIMENSIONS
+    dim_counts = {}
+    for dim_name in DIMENSIONS:
+        dim_counts[dim_name] = store.count_by_dimension(dim_name)
+
+    return {
+        "total_chunks": store.count(),
+        "by_dimension": dim_counts,
+    }
 
 
 # --- Persona ---

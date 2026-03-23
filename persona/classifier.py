@@ -53,9 +53,11 @@ KEYWORD_RULES: list[tuple[str, str]] = [
      r"walk|steps|heart rate|blood pressure|health check)\b", "wellness"),
 
     # Nutrition
-    (r"\b(breakfast|lunch|dinner|meal prep|recipe|cook|calorie|protein|carb|fat|"
+    (r"\b(breakfast|lunch|dinner|meal prep|recipe|cook|cooking|calorie|protein|carb|fat|"
      r"vegetable|fruit|supplement|vitamin|diet|vegan|vegetarian|keto|fasting|"
-     r"hydration|water intake|restaurant|cafe|coffee shop|food)\b", "nutrition"),
+     r"hydration|water intake|restaurant|cafe|coffee shop|food|curry|pizza|"
+     r"sushi|ramen|pasta|salad|smoothie|snack|grocery|thai|indian food|"
+     r"mexican food|chinese food|korean food|cuisine|eating)\b", "nutrition"),
 
     # Entertainment
     (r"\b(movie|film|show|series|netflix|spotify|youtube|podcast|album|song|"

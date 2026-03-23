@@ -1,5 +1,7 @@
 import hashlib
 import json
+import math
+from datetime import datetime, timezone
 
 import chromadb
 from chromadb.config import Settings
@@ -58,8 +60,14 @@ class VectorStore:
         n_results: int = 10,
         where: dict | None = None,
         where_document: dict | None = None,
+        max_distance: float | None = None,
     ) -> list[dict]:
-        """Search for relevant memory chunks."""
+        """Search for relevant memory chunks.
+
+        Args:
+            max_distance: If set, filter out results with cosine distance above
+                          this threshold (0 = identical, 2 = opposite).
+        """
         query_embedding = self.embedding_engine.embed_single(query)
 
         kwargs = {
@@ -84,42 +92,124 @@ class VectorStore:
                     "id": results["ids"][0][j] if results["ids"] else None,
                 })
 
+        # Filter by relevance threshold
+        if max_distance is not None:
+            items = [item for item in items if item["distance"] is not None and item["distance"] <= max_distance]
+
         return items
 
     # ------------------------------------------------------------------
     # Typed search helpers
     # ------------------------------------------------------------------
 
-    def search_user_messages(self, query: str, n_results: int = 10) -> list[dict]:
+    def search_user_messages(self, query: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
         """Search only user messages (for persona-related queries)."""
-        return self.search(query, n_results, where={"type": "user_message"})
+        return self.search(query, n_results, where={"type": "user_message"}, max_distance=max_distance)
 
-    def search_conversations(self, query: str, n_results: int = 10) -> list[dict]:
+    def search_conversations(self, query: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
         """Search conversation pairs (for context retrieval)."""
-        return self.search(query, n_results, where={"type": "conversation_pair"})
+        return self.search(query, n_results, where={"type": "conversation_pair"}, max_distance=max_distance)
 
-    def search_notes(self, query: str, n_results: int = 10) -> list[dict]:
-        return self.search(query, n_results, where={"type": "note"})
+    def search_notes(self, query: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        return self.search(query, n_results, where={"type": "note"}, max_distance=max_distance)
 
-    def search_browser(self, query: str, n_results: int = 10) -> list[dict]:
-        return self.search(query, n_results, where={"type": "browser_daily"})
+    def search_browser(self, query: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        return self.search(query, n_results, where={"type": "browser_daily"}, max_distance=max_distance)
 
-    def search_tasks(self, query: str, n_results: int = 10) -> list[dict]:
-        return self.search(query, n_results, where={"type": "task"})
+    def search_tasks(self, query: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        return self.search(query, n_results, where={"type": "task"}, max_distance=max_distance)
 
-    def search_by_pillar(self, query: str, pillar: str, n_results: int = 10) -> list[dict]:
-        return self.search(query, n_results, where={"pillar": pillar})
+    def search_by_pillar(self, query: str, pillar: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        return self.search(query, n_results, where={"pillar": pillar}, max_distance=max_distance)
 
-    def search_by_source(self, query: str, source: str, n_results: int = 10) -> list[dict]:
-        return self.search(query, n_results, where={"source": source})
+    def search_by_source(self, query: str, source: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
+        return self.search(query, n_results, where={"source": source}, max_distance=max_distance)
+
+    # ------------------------------------------------------------------
+    # Recency-weighted search with keyword reranking
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _keyword_overlap_score(query: str, document: str) -> float:
+        """Simple keyword overlap as a reranking signal. Returns 0.0-1.0."""
+        stopwords = {
+            "the", "a", "an", "is", "are", "was", "were", "i", "you", "my", "me",
+            "do", "does", "did", "have", "has", "had", "what", "when", "where",
+            "how", "why", "which", "that", "this", "to", "for", "in", "on", "at",
+            "of", "and", "or", "but", "with", "about", "would", "should", "could",
+        }
+        query_words = set(query.lower().split()) - stopwords
+        if not query_words:
+            return 0.0
+        doc_words = set(document.lower().split())
+        overlap = query_words & doc_words
+        return len(overlap) / len(query_words)
+
+    def search_with_recency(
+        self,
+        query: str,
+        n_results: int = 10,
+        where: dict | None = None,
+        max_distance: float | None = None,
+        recency_weight: float = 0.15,
+        keyword_weight: float = 0.10,
+    ) -> list[dict]:
+        """Search with combined scoring: similarity + recency + keyword overlap.
+
+        Over-fetches 2x results, then reranks by a blended score:
+          (1 - recency_weight - keyword_weight) * similarity
+          + recency_weight * recency_score
+          + keyword_weight * keyword_overlap
+        """
+        raw_results = self.search(
+            query=query,
+            n_results=n_results * 2,
+            where=where,
+            max_distance=max_distance,
+        )
+        if not raw_results:
+            return []
+
+        now = datetime.now(tz=timezone.utc)
+        similarity_weight = 1.0 - recency_weight - keyword_weight
+
+        scored = []
+        for r in raw_results:
+            # Similarity score: convert cosine distance (0-2) to similarity (1-0)
+            distance = r.get("distance") or 1.0
+            similarity_score = max(0.0, 1.0 - distance / 2.0)
+
+            # Recency score: exponential decay, half-life ~1 year
+            recency_score = 0.0
+            ts = r["metadata"].get("msg_timestamp") or r["metadata"].get("timestamp", "")
+            if ts:
+                try:
+                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    days_ago = max(0, (now - dt).days)
+                    recency_score = math.exp(-days_ago / 365.0)
+                except (ValueError, TypeError):
+                    pass
+
+            # Keyword overlap score
+            kw_score = self._keyword_overlap_score(query, r["text"])
+
+            r["_combined_score"] = (
+                similarity_weight * similarity_score
+                + recency_weight * recency_score
+                + keyword_weight * kw_score
+            )
+            scored.append(r)
+
+        scored.sort(key=lambda x: x["_combined_score"], reverse=True)
+        return scored[:n_results]
 
     # ------------------------------------------------------------------
     # Dimension-aware search (v2)
     # ------------------------------------------------------------------
 
-    def search_by_dimension(self, query: str, dimension: str, n_results: int = 10) -> list[dict]:
+    def search_by_dimension(self, query: str, dimension: str, n_results: int = 10, max_distance: float | None = None) -> list[dict]:
         """Search chunks classified into a specific persona dimension."""
-        return self.search(query, n_results, where={"dimension": dimension})
+        return self.search(query, n_results, where={"dimension": dimension}, max_distance=max_distance)
 
     def get_unclassified_chunks(self, limit: int = 500) -> dict:
         """Get chunks that haven't been classified yet."""

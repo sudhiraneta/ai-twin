@@ -38,7 +38,7 @@ def _ensure_metadata(metadata: dict) -> dict:
 class Chunker:
     """Splits conversation messages into semantic chunks for embedding."""
 
-    def __init__(self, chunk_size: int = 500, overlap: int = 50):
+    def __init__(self, chunk_size: int = 1200, overlap: int = 150):
         self.chunk_size = chunk_size
         self.overlap = overlap
 
@@ -107,7 +107,7 @@ class Chunker:
 
             # Try to break at sentence boundary
             if end < len(text):
-                for sep in [". ", "\n", "! ", "? ", ", "]:
+                for sep in ["\n\n", ". ", "\n", "! ", "? ", ", "]:
                     last_sep = text[start:end].rfind(sep)
                     if last_sep > self.chunk_size // 2:
                         end = start + last_sep + len(sep)

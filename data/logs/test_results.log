@@ -1,0 +1,534 @@
+[00:24:13] 
+============================================================
+[00:24:13] AI Twin Test Suite — 34 tests
+[00:24:13] ============================================================
+[00:24:13] 
+--- Round 1/3 ---
+[00:24:13]   FAIL: dimensions_registry — No module named 'persona'
+[00:24:13]   FAIL: persona_dimension_dataclass — No module named 'persona'
+[00:24:13]   FAIL: classifier_type_based — No module named 'persona'
+[00:24:13]   FAIL: classifier_pillar_based — No module named 'persona'
+[00:24:13]   FAIL: classifier_keyword_based — No module named 'persona'
+[00:24:13]   FAIL: classifier_multi_match — No module named 'persona'
+[00:24:13]   FAIL: classifier_unclassifiable — No module named 'persona'
+[00:24:13]   FAIL: chunker_metadata — No module named 'memory'
+[00:24:13]   FAIL: chunker_conversations — No module named 'memory'
+[00:24:13]   FAIL: vectorstore_search_by_dimension — No module named 'memory'
+[00:24:13]   FAIL: vectorstore_get_unclassified — No module named 'memory'
+[00:24:13]   FAIL: vectorstore_count_by_dimension — No module named 'memory'
+[00:24:13]   FAIL: profile_load — No module named 'persona'
+[00:24:13]   FAIL: profile_dimensions — No module named 'persona'
+[00:24:13]   FAIL: profile_save_load_roundtrip — No module named 'persona'
+[00:24:13]   FAIL: profile_snapshot — No module named 'persona'
+[00:24:13]   FAIL: profile_migration — No module named 'persona'
+[00:24:13]   FAIL: engine_init — No module named 'twin'
+[00:24:13]   FAIL: engine_learn — No module named 'twin'
+[00:24:13]   FAIL: engine_search_memory — No module named 'twin'
+[00:24:13]   FAIL: engine_parse_decision — No module named 'twin'
+[00:24:13]   FAIL: engine_dimension_context — No module named 'twin'
+[00:24:13]   FAIL: prompts_build — No module named 'twin'
+[00:24:13]   FAIL: config_constants — No module named 'config'
+[00:24:13]   FAIL: daily_loop_init — No module named 'daily_loop'
+[00:24:18]   PASS: daily_loop_status
+[00:24:18]   FAIL: api_routes_registered — No module named 'api'
+[00:24:18]   FAIL: api_memory_stats — No module named 'main'
+[00:24:18]   FAIL: api_persona_dimensions — No module named 'main'
+[00:24:18]   FAIL: api_sync_status — No module named 'main'
+[00:24:18]   FAIL: api_persona_evolution — No module named 'main'
+[00:24:18]   FAIL: parsers_gemini_html — No module named 'parsers'
+[00:24:18]   FAIL: parsers_youtube — No module named 'parsers'
+[00:24:18]   FAIL: connectors_all — No module named 'connectors'
+[00:24:18] 
+Round 1: 1/34 passed, 33 failed
+[00:24:18] Retrying 33 failed tests...
+[00:24:20] 
+--- Round 2/3 ---
+[00:24:20]   FAIL: dimensions_registry — No module named 'persona'
+[00:24:20]   FAIL: persona_dimension_dataclass — No module named 'persona'
+[00:24:20]   FAIL: classifier_type_based — No module named 'persona'
+[00:24:20]   FAIL: classifier_pillar_based — No module named 'persona'
+[00:24:20]   FAIL: classifier_keyword_based — No module named 'persona'
+[00:24:20]   FAIL: classifier_multi_match — No module named 'persona'
+[00:24:20]   FAIL: classifier_unclassifiable — No module named 'persona'
+[00:24:20]   FAIL: chunker_metadata — No module named 'memory'
+[00:24:20]   FAIL: chunker_conversations — No module named 'memory'
+[00:24:20]   FAIL: vectorstore_search_by_dimension — No module named 'memory'
+[00:24:20]   FAIL: vectorstore_get_unclassified — No module named 'memory'
+[00:24:20]   FAIL: vectorstore_count_by_dimension — No module named 'memory'
+[00:24:20]   FAIL: profile_load — No module named 'persona'
+[00:24:20]   FAIL: profile_dimensions — No module named 'persona'
+[00:24:20]   FAIL: profile_save_load_roundtrip — No module named 'persona'
+[00:24:20]   FAIL: profile_snapshot — No module named 'persona'
+[00:24:20]   FAIL: profile_migration — No module named 'persona'
+[00:24:20]   FAIL: engine_init — No module named 'twin'
+[00:24:20]   FAIL: engine_learn — No module named 'twin'
+[00:24:20]   FAIL: engine_search_memory — No module named 'twin'
+[00:24:20]   FAIL: engine_parse_decision — No module named 'twin'
+[00:24:20]   FAIL: engine_dimension_context — No module named 'twin'
+[00:24:20]   FAIL: prompts_build — No module named 'twin'
+[00:24:20]   FAIL: config_constants — No module named 'config'
+[00:24:20]   FAIL: daily_loop_init — No module named 'daily_loop'
+[00:24:20]   FAIL: api_routes_registered — No module named 'api'
+[00:24:20]   FAIL: api_memory_stats — No module named 'main'
+[00:24:20]   FAIL: api_persona_dimensions — No module named 'main'
+[00:24:20]   FAIL: api_sync_status — No module named 'main'
+[00:24:20]   FAIL: api_persona_evolution — No module named 'main'
+[00:24:20]   FAIL: parsers_gemini_html — No module named 'parsers'
+[00:24:20]   FAIL: parsers_youtube — No module named 'parsers'
+[00:24:20]   FAIL: connectors_all — No module named 'connectors'
+[00:24:20] 
+Round 2: 1/34 passed, 33 failed
+[00:24:20] Retrying 33 failed tests...
+[00:24:22] 
+--- Round 3/3 ---
+[00:24:22]   FAIL: dimensions_registry — No module named 'persona'
+[00:24:22]   FAIL: persona_dimension_dataclass — No module named 'persona'
+[00:24:22]   FAIL: classifier_type_based — No module named 'persona'
+[00:24:22]   FAIL: classifier_pillar_based — No module named 'persona'
+[00:24:22]   FAIL: classifier_keyword_based — No module named 'persona'
+[00:24:22]   FAIL: classifier_multi_match — No module named 'persona'
+[00:24:22]   FAIL: classifier_unclassifiable — No module named 'persona'
+[00:24:22]   FAIL: chunker_metadata — No module named 'memory'
+[00:24:22]   FAIL: chunker_conversations — No module named 'memory'
+[00:24:22]   FAIL: vectorstore_search_by_dimension — No module named 'memory'
+[00:24:22]   FAIL: vectorstore_get_unclassified — No module named 'memory'
+[00:24:22]   FAIL: vectorstore_count_by_dimension — No module named 'memory'
+[00:24:22]   FAIL: profile_load — No module named 'persona'
+[00:24:22]   FAIL: profile_dimensions — No module named 'persona'
+[00:24:22]   FAIL: profile_save_load_roundtrip — No module named 'persona'
+[00:24:22]   FAIL: profile_snapshot — No module named 'persona'
+[00:24:22]   FAIL: profile_migration — No module named 'persona'
+[00:24:22]   FAIL: engine_init — No module named 'twin'
+[00:24:22]   FAIL: engine_learn — No module named 'twin'
+[00:24:22]   FAIL: engine_search_memory — No module named 'twin'
+[00:24:22]   FAIL: engine_parse_decision — No module named 'twin'
+[00:24:22]   FAIL: engine_dimension_context — No module named 'twin'
+[00:24:22]   FAIL: prompts_build — No module named 'twin'
+[00:24:22]   FAIL: config_constants — No module named 'config'
+[00:24:22]   FAIL: daily_loop_init — No module named 'daily_loop'
+[00:24:22]   FAIL: api_routes_registered — No module named 'api'
+[00:24:22]   FAIL: api_memory_stats — No module named 'main'
+[00:24:22]   FAIL: api_persona_dimensions — No module named 'main'
+[00:24:22]   FAIL: api_sync_status — No module named 'main'
+[00:24:22]   FAIL: api_persona_evolution — No module named 'main'
+[00:24:22]   FAIL: parsers_gemini_html — No module named 'parsers'
+[00:24:22]   FAIL: parsers_youtube — No module named 'parsers'
+[00:24:22]   FAIL: connectors_all — No module named 'connectors'
+[00:24:22] 
+Round 3: 1/34 passed, 33 failed
+[00:24:22] 
+============================================================
+[00:24:22] FINAL RESULTS
+[00:24:22] ============================================================
+[00:24:22]   api_memory_stats                         FAIL: No module named 'main'
+[00:24:22]   api_persona_dimensions                   FAIL: No module named 'main'
+[00:24:22]   api_persona_evolution                    FAIL: No module named 'main'
+[00:24:22]   api_routes_registered                    FAIL: No module named 'api'
+[00:24:22]   api_sync_status                          FAIL: No module named 'main'
+[00:24:22]   chunker_conversations                    FAIL: No module named 'memory'
+[00:24:22]   chunker_metadata                         FAIL: No module named 'memory'
+[00:24:22]   classifier_keyword_based                 FAIL: No module named 'persona'
+[00:24:22]   classifier_multi_match                   FAIL: No module named 'persona'
+[00:24:22]   classifier_pillar_based                  FAIL: No module named 'persona'
+[00:24:22]   classifier_type_based                    FAIL: No module named 'persona'
+[00:24:22]   classifier_unclassifiable                FAIL: No module named 'persona'
+[00:24:22]   config_constants                         FAIL: No module named 'config'
+[00:24:22]   connectors_all                           FAIL: No module named 'connectors'
+[00:24:22]   daily_loop_init                          FAIL: No module named 'daily_loop'
+[00:24:22]   daily_loop_status                        PASS
+[00:24:22]   dimensions_registry                      FAIL: No module named 'persona'
+[00:24:22]   engine_dimension_context                 FAIL: No module named 'twin'
+[00:24:22]   engine_init                              FAIL: No module named 'twin'
+[00:24:22]   engine_learn                             FAIL: No module named 'twin'
+[00:24:22]   engine_parse_decision                    FAIL: No module named 'twin'
+[00:24:22]   engine_search_memory                     FAIL: No module named 'twin'
+[00:24:22]   parsers_gemini_html                      FAIL: No module named 'parsers'
+[00:24:22]   parsers_youtube                          FAIL: No module named 'parsers'
+[00:24:22]   persona_dimension_dataclass              FAIL: No module named 'persona'
+[00:24:22]   profile_dimensions                       FAIL: No module named 'persona'
+[00:24:22]   profile_load                             FAIL: No module named 'persona'
+[00:24:22]   profile_migration                        FAIL: No module named 'persona'
+[00:24:22]   profile_save_load_roundtrip              FAIL: No module named 'persona'
+[00:24:22]   profile_snapshot                         FAIL: No module named 'persona'
+[00:24:22]   prompts_build                            FAIL: No module named 'twin'
+[00:24:22]   vectorstore_count_by_dimension           FAIL: No module named 'memory'
+[00:24:22]   vectorstore_get_unclassified             FAIL: No module named 'memory'
+[00:24:22]   vectorstore_search_by_dimension          FAIL: No module named 'memory'
+[00:24:22] 
+  TOTAL: 1 passed, 33 failed out of 34
+[00:24:36] 
+============================================================
+[00:24:36] AI Twin Test Suite — 34 tests
+[00:24:36] ============================================================
+[00:24:36] 
+--- Round 1/3 ---
+[00:24:40]   PASS: dimensions_registry
+[00:24:40]   PASS: persona_dimension_dataclass
+[00:24:40]   PASS: classifier_type_based
+[00:24:40]   PASS: classifier_pillar_based
+[00:24:40]   PASS: classifier_keyword_based
+[00:24:40]   PASS: classifier_multi_match
+[00:24:40]   PASS: classifier_unclassifiable
+[00:24:40]   PASS: chunker_metadata
+[00:24:40]   PASS: chunker_conversations
+[00:24:45]   PASS: vectorstore_search_by_dimension
+[00:24:45]   PASS: vectorstore_get_unclassified
+[00:24:45]   PASS: vectorstore_count_by_dimension
+[00:24:45]   PASS: profile_load
+[00:24:45]   PASS: profile_dimensions
+[00:24:45]   PASS: profile_save_load_roundtrip
+[00:24:45]   PASS: profile_snapshot
+[00:24:45]   PASS: profile_migration
+[00:24:45]   PASS: engine_init
+[00:24:48]   PASS: engine_learn
+[00:24:50]   PASS: engine_search_memory
+[00:24:50]   PASS: engine_parse_decision
+[00:24:50]   PASS: engine_dimension_context
+[00:24:50]   PASS: prompts_build
+[00:24:50]   PASS: config_constants
+[00:24:50]   PASS: daily_loop_init
+[00:24:54]   PASS: daily_loop_status
+[00:24:55]   PASS: api_routes_registered
+[00:24:55]   PASS: api_memory_stats
+[00:24:55]   PASS: api_persona_dimensions
+[00:24:55]   PASS: api_sync_status
+[00:24:55]   PASS: api_persona_evolution
+[00:24:55]   PASS: parsers_gemini_html
+[00:24:55]   PASS: parsers_youtube
+[00:24:55]   PASS: connectors_all
+[00:24:55] 
+Round 1: 34/34 passed, 0 failed
+[00:24:55] 
+ALL 34 TESTS PASSED!
+[00:24:55] 
+============================================================
+[00:24:55] FINAL RESULTS
+[00:24:55] ============================================================
+[00:24:55]   api_memory_stats                         PASS
+[00:24:55]   api_persona_dimensions                   PASS
+[00:24:55]   api_persona_evolution                    PASS
+[00:24:55]   api_routes_registered                    PASS
+[00:24:55]   api_sync_status                          PASS
+[00:24:55]   chunker_conversations                    PASS
+[00:24:55]   chunker_metadata                         PASS
+[00:24:55]   classifier_keyword_based                 PASS
+[00:24:55]   classifier_multi_match                   PASS
+[00:24:55]   classifier_pillar_based                  PASS
+[00:24:55]   classifier_type_based                    PASS
+[00:24:55]   classifier_unclassifiable                PASS
+[00:24:55]   config_constants                         PASS
+[00:24:55]   connectors_all                           PASS
+[00:24:55]   daily_loop_init                          PASS
+[00:24:55]   daily_loop_status                        PASS
+[00:24:55]   dimensions_registry                      PASS
+[00:24:55]   engine_dimension_context                 PASS
+[00:24:55]   engine_init                              PASS
+[00:24:55]   engine_learn                             PASS
+[00:24:55]   engine_parse_decision                    PASS
+[00:24:55]   engine_search_memory                     PASS
+[00:24:55]   parsers_gemini_html                      PASS
+[00:24:55]   parsers_youtube                          PASS
+[00:24:55]   persona_dimension_dataclass              PASS
+[00:24:55]   profile_dimensions                       PASS
+[00:24:55]   profile_load                             PASS
+[00:24:55]   profile_migration                        PASS
+[00:24:55]   profile_save_load_roundtrip              PASS
+[00:24:55]   profile_snapshot                         PASS
+[00:24:55]   prompts_build                            PASS
+[00:24:55]   vectorstore_count_by_dimension           PASS
+[00:24:55]   vectorstore_get_unclassified             PASS
+[00:24:55]   vectorstore_search_by_dimension          PASS
+[00:24:55] 
+  TOTAL: 34 passed, 0 failed out of 34
+[00:26:02] 
+============================================================
+[00:26:02] AI Twin Test Suite — 34 tests
+[00:26:02] ============================================================
+[00:26:02] 
+--- Round 1/3 ---
+[00:26:05]   PASS: dimensions_registry
+[00:26:05]   PASS: persona_dimension_dataclass
+[00:26:05]   PASS: classifier_type_based
+[00:26:05]   PASS: classifier_pillar_based
+[00:26:05]   PASS: classifier_keyword_based
+[00:26:05]   PASS: classifier_multi_match
+[00:26:05]   PASS: classifier_unclassifiable
+[00:26:05]   PASS: chunker_metadata
+[00:26:05]   PASS: chunker_conversations
+[00:26:08]   PASS: vectorstore_search_by_dimension
+[00:26:08]   PASS: vectorstore_get_unclassified
+[00:26:08]   PASS: vectorstore_count_by_dimension
+[00:26:08]   PASS: profile_load
+[00:26:08]   PASS: profile_dimensions
+[00:26:08]   PASS: profile_save_load_roundtrip
+[00:26:08]   PASS: profile_snapshot
+[00:26:08]   PASS: profile_migration
+[00:26:08]   PASS: engine_init
+[00:26:10]   PASS: engine_learn
+[00:26:12]   PASS: engine_search_memory
+[00:26:12]   PASS: engine_parse_decision
+[00:26:12]   PASS: engine_dimension_context
+[00:26:12]   PASS: prompts_build
+[00:26:12]   PASS: config_constants
+[00:26:12]   PASS: daily_loop_init
+[00:26:17]   PASS: daily_loop_status
+[00:26:17]   PASS: api_routes_registered
+[00:26:17]   PASS: api_memory_stats
+[00:26:17]   PASS: api_persona_dimensions
+[00:26:17]   PASS: api_sync_status
+[00:26:17]   PASS: api_persona_evolution
+[00:26:17]   PASS: parsers_gemini_html
+[00:26:17]   PASS: parsers_youtube
+[00:26:17]   PASS: connectors_all
+[00:26:17] 
+Round 1: 34/34 passed, 0 failed
+[00:26:17] 
+ALL 34 TESTS PASSED!
+[00:26:17] 
+============================================================
+[00:26:17] FINAL RESULTS
+[00:26:17] ============================================================
+[00:26:17]   api_memory_stats                         PASS
+[00:26:17]   api_persona_dimensions                   PASS
+[00:26:17]   api_persona_evolution                    PASS
+[00:26:17]   api_routes_registered                    PASS
+[00:26:17]   api_sync_status                          PASS
+[00:26:17]   chunker_conversations                    PASS
+[00:26:17]   chunker_metadata                         PASS
+[00:26:17]   classifier_keyword_based                 PASS
+[00:26:17]   classifier_multi_match                   PASS
+[00:26:17]   classifier_pillar_based                  PASS
+[00:26:17]   classifier_type_based                    PASS
+[00:26:17]   classifier_unclassifiable                PASS
+[00:26:17]   config_constants                         PASS
+[00:26:17]   connectors_all                           PASS
+[00:26:17]   daily_loop_init                          PASS
+[00:26:17]   daily_loop_status                        PASS
+[00:26:17]   dimensions_registry                      PASS
+[00:26:17]   engine_dimension_context                 PASS
+[00:26:17]   engine_init                              PASS
+[00:26:17]   engine_learn                             PASS
+[00:26:17]   engine_parse_decision                    PASS
+[00:26:17]   engine_search_memory                     PASS
+[00:26:17]   parsers_gemini_html                      PASS
+[00:26:17]   parsers_youtube                          PASS
+[00:26:17]   persona_dimension_dataclass              PASS
+[00:26:17]   profile_dimensions                       PASS
+[00:26:17]   profile_load                             PASS
+[00:26:17]   profile_migration                        PASS
+[00:26:17]   profile_save_load_roundtrip              PASS
+[00:26:17]   profile_snapshot                         PASS
+[00:26:17]   prompts_build                            PASS
+[00:26:17]   vectorstore_count_by_dimension           PASS
+[00:26:17]   vectorstore_get_unclassified             PASS
+[00:26:17]   vectorstore_search_by_dimension          PASS
+[00:26:17] 
+  TOTAL: 34 passed, 0 failed out of 34
+[00:30:21] 
+============================================================
+[00:30:21] AI Twin Test Suite — 44 tests
+[00:30:21] ============================================================
+[00:30:21] 
+--- Round 1/3 ---
+[00:30:41]   PASS: dimensions_registry
+[00:30:41]   PASS: persona_dimension_dataclass
+[00:30:41]   PASS: classifier_type_based
+[00:30:41]   PASS: classifier_pillar_based
+[00:30:41]   PASS: classifier_keyword_based
+[00:30:41]   PASS: classifier_multi_match
+[00:30:41]   PASS: classifier_unclassifiable
+[00:30:41]   PASS: chunker_metadata
+[00:30:41]   PASS: chunker_conversations
+[00:30:46]   PASS: vectorstore_search_by_dimension
+[00:30:46]   PASS: vectorstore_get_unclassified
+[00:30:46]   PASS: vectorstore_count_by_dimension
+[00:30:46]   PASS: profile_load
+[00:30:46]   PASS: profile_dimensions
+[00:30:46]   PASS: profile_save_load_roundtrip
+[00:30:46]   PASS: profile_snapshot
+[00:30:46]   PASS: profile_migration
+[00:30:46]   PASS: engine_init
+[00:30:50]   PASS: engine_learn
+[00:30:52]   PASS: engine_search_memory
+[00:30:52]   PASS: engine_parse_decision
+[00:30:52]   PASS: engine_dimension_context
+[00:30:52]   PASS: prompts_build
+[00:30:52]   PASS: config_constants
+[00:30:52]   PASS: daily_loop_init
+[00:31:13]   PASS: daily_loop_status
+[00:31:14]   PASS: api_routes_registered
+[00:31:14]   PASS: api_memory_stats
+[00:31:17]   PASS: api_memory_search_fields
+[00:31:17]   PASS: api_persona_dimensions
+[00:31:17]   PASS: api_sync_status
+[00:31:17]   PASS: api_persona_evolution
+[00:31:17]   PASS: parsers_gemini_html
+[00:31:17]   PASS: parsers_youtube
+[00:31:17]   PASS: connectors_all
+[00:31:17]   PASS: ui_syntax
+[00:31:17]   PASS: ui_persona_dimensions_fields
+[00:31:18]   PASS: ui_sync_status_fields
+[00:31:18]   PASS: ui_singularity_status_fields
+[00:31:18]   PASS: ui_evolution_fields
+[00:31:18]   PASS: ui_pillar_grouping
+[00:31:18]   PASS: ui_normalized_files
+[00:31:22]   PASS: ui_learn_endpoint
+[00:31:22]   PASS: ui_chat_reset
+[00:31:22] 
+Round 1: 44/44 passed, 0 failed
+[00:31:22] 
+ALL 44 TESTS PASSED!
+[00:31:22] 
+============================================================
+[00:31:22] FINAL RESULTS
+[00:31:22] ============================================================
+[00:31:22]   api_memory_search_fields                 PASS
+[00:31:22]   api_memory_stats                         PASS
+[00:31:22]   api_persona_dimensions                   PASS
+[00:31:22]   api_persona_evolution                    PASS
+[00:31:22]   api_routes_registered                    PASS
+[00:31:22]   api_sync_status                          PASS
+[00:31:22]   chunker_conversations                    PASS
+[00:31:22]   chunker_metadata                         PASS
+[00:31:22]   classifier_keyword_based                 PASS
+[00:31:22]   classifier_multi_match                   PASS
+[00:31:22]   classifier_pillar_based                  PASS
+[00:31:22]   classifier_type_based                    PASS
+[00:31:22]   classifier_unclassifiable                PASS
+[00:31:22]   config_constants                         PASS
+[00:31:22]   connectors_all                           PASS
+[00:31:22]   daily_loop_init                          PASS
+[00:31:22]   daily_loop_status                        PASS
+[00:31:22]   dimensions_registry                      PASS
+[00:31:22]   engine_dimension_context                 PASS
+[00:31:22]   engine_init                              PASS
+[00:31:22]   engine_learn                             PASS
+[00:31:22]   engine_parse_decision                    PASS
+[00:31:22]   engine_search_memory                     PASS
+[00:31:22]   parsers_gemini_html                      PASS
+[00:31:22]   parsers_youtube                          PASS
+[00:31:22]   persona_dimension_dataclass              PASS
+[00:31:22]   profile_dimensions                       PASS
+[00:31:22]   profile_load                             PASS
+[00:31:22]   profile_migration                        PASS
+[00:31:22]   profile_save_load_roundtrip              PASS
+[00:31:22]   profile_snapshot                         PASS
+[00:31:22]   prompts_build                            PASS
+[00:31:22]   ui_chat_reset                            PASS
+[00:31:22]   ui_evolution_fields                      PASS
+[00:31:22]   ui_learn_endpoint                        PASS
+[00:31:22]   ui_normalized_files                      PASS
+[00:31:22]   ui_persona_dimensions_fields             PASS
+[00:31:22]   ui_pillar_grouping                       PASS
+[00:31:22]   ui_singularity_status_fields             PASS
+[00:31:22]   ui_sync_status_fields                    PASS
+[00:31:22]   ui_syntax                                PASS
+[00:31:22]   vectorstore_count_by_dimension           PASS
+[00:31:22]   vectorstore_get_unclassified             PASS
+[00:31:22]   vectorstore_search_by_dimension          PASS
+[00:31:22] 
+  TOTAL: 44 passed, 0 failed out of 44
+[09:09:33] 
+============================================================
+[09:09:33] AI Twin Test Suite — 44 tests
+[09:09:33] ============================================================
+[09:09:33] 
+--- Round 1/3 ---
+[09:09:36]   PASS: dimensions_registry
+[09:09:36]   PASS: persona_dimension_dataclass
+[09:09:36]   PASS: classifier_type_based
+[09:09:36]   PASS: classifier_pillar_based
+[09:09:36]   PASS: classifier_keyword_based
+[09:09:36]   PASS: classifier_multi_match
+[09:09:36]   PASS: classifier_unclassifiable
+[09:09:36]   PASS: chunker_metadata
+[09:09:36]   PASS: chunker_conversations
+[09:09:39]   PASS: vectorstore_search_by_dimension
+[09:09:39]   PASS: vectorstore_get_unclassified
+[09:09:39]   PASS: vectorstore_count_by_dimension
+[09:09:39]   PASS: profile_load
+[09:09:39]   PASS: profile_dimensions
+[09:09:39]   PASS: profile_save_load_roundtrip
+[09:09:39]   PASS: profile_snapshot
+[09:09:39]   PASS: profile_migration
+[09:09:39]   PASS: engine_init
+[09:09:41]   PASS: engine_learn
+[09:09:43]   PASS: engine_search_memory
+[09:09:43]   PASS: engine_parse_decision
+[09:09:43]   PASS: engine_dimension_context
+[09:09:43]   PASS: prompts_build
+[09:09:43]   PASS: config_constants
+[09:09:43]   PASS: daily_loop_init
+[09:09:47]   PASS: daily_loop_status
+[09:09:47]   PASS: api_routes_registered
+[09:09:47]   PASS: api_memory_stats
+[09:09:49]   PASS: api_memory_search_fields
+[09:09:49]   PASS: api_persona_dimensions
+[09:09:49]   PASS: api_sync_status
+[09:09:49]   PASS: api_persona_evolution
+[09:09:49]   PASS: parsers_gemini_html
+[09:09:49]   PASS: parsers_youtube
+[09:09:49]   PASS: connectors_all
+[09:09:49]   PASS: ui_syntax
+[09:09:49]   PASS: ui_persona_dimensions_fields
+[09:09:49]   PASS: ui_sync_status_fields
+[09:09:49]   PASS: ui_singularity_status_fields
+[09:09:49]   PASS: ui_evolution_fields
+[09:09:49]   PASS: ui_pillar_grouping
+[09:09:49]   PASS: ui_normalized_files
+[09:09:49]   PASS: ui_learn_endpoint
+[09:09:49]   PASS: ui_chat_reset
+[09:09:49] 
+Round 1: 44/44 passed, 0 failed
+[09:09:49] 
+ALL 44 TESTS PASSED!
+[09:09:49] 
+============================================================
+[09:09:49] FINAL RESULTS
+[09:09:49] ============================================================
+[09:09:49]   api_memory_search_fields                 PASS
+[09:09:49]   api_memory_stats                         PASS
+[09:09:49]   api_persona_dimensions                   PASS
+[09:09:49]   api_persona_evolution                    PASS
+[09:09:49]   api_routes_registered                    PASS
+[09:09:49]   api_sync_status                          PASS
+[09:09:49]   chunker_conversations                    PASS
+[09:09:49]   chunker_metadata                         PASS
+[09:09:49]   classifier_keyword_based                 PASS
+[09:09:49]   classifier_multi_match                   PASS
+[09:09:49]   classifier_pillar_based                  PASS
+[09:09:49]   classifier_type_based                    PASS
+[09:09:49]   classifier_unclassifiable                PASS
+[09:09:49]   config_constants                         PASS
+[09:09:49]   connectors_all                           PASS
+[09:09:49]   daily_loop_init                          PASS
+[09:09:49]   daily_loop_status                        PASS
+[09:09:49]   dimensions_registry                      PASS
+[09:09:49]   engine_dimension_context                 PASS
+[09:09:49]   engine_init                              PASS
+[09:09:49]   engine_learn                             PASS
+[09:09:49]   engine_parse_decision                    PASS
+[09:09:49]   engine_search_memory                     PASS
+[09:09:49]   parsers_gemini_html                      PASS
+[09:09:49]   parsers_youtube                          PASS
+[09:09:49]   persona_dimension_dataclass              PASS
+[09:09:49]   profile_dimensions                       PASS
+[09:09:49]   profile_load                             PASS
+[09:09:49]   profile_migration                        PASS
+[09:09:49]   profile_save_load_roundtrip              PASS
+[09:09:49]   profile_snapshot                         PASS
+[09:09:49]   prompts_build                            PASS
+[09:09:49]   ui_chat_reset                            PASS
+[09:09:49]   ui_evolution_fields                      PASS
+[09:09:49]   ui_learn_endpoint                        PASS
+[09:09:49]   ui_normalized_files                      PASS
+[09:09:49]   ui_persona_dimensions_fields             PASS
+[09:09:49]   ui_pillar_grouping                       PASS
+[09:09:49]   ui_singularity_status_fields             PASS
+[09:09:49]   ui_sync_status_fields                    PASS
+[09:09:49]   ui_syntax                                PASS
+[09:09:49]   vectorstore_count_by_dimension           PASS
+[09:09:49]   vectorstore_get_unclassified             PASS
+[09:09:49]   vectorstore_search_by_dimension          PASS
+[09:09:49] 
+  TOTAL: 44 passed, 0 failed out of 44

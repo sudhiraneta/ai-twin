@@ -29,38 +29,45 @@ for d in [RAW_DIR, NORMALIZED_DIR, CHROMA_DIR, PERSONA_DIR,
           RAW_DIR / "chatgpt", RAW_DIR / "claude", RAW_DIR / "gemini"]:
     d.mkdir(parents=True, exist_ok=True)
 
-# LLM Provider — supports "anthropic", "ollama", "openrouter", "openai_compat"
-# Ollama is FREE (runs locally). OpenRouter gives access to cheap models.
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "ollama")
+# LLM Provider — "groq" (fast+free), "ollama" (local), "anthropic", "openrouter", "openai_compat"
+# Groq: free tier ~500 tok/sec. Ollama: free, local ~30 tok/sec.
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq")
 
-# API Keys (only needed for paid providers)
+# API Keys
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 # LLM Settings per provider
 LLM_MODELS = {
+    "groq": os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant"),  # FREE, fast
     "ollama": os.environ.get("OLLAMA_MODEL", "llama3"),             # FREE, local
     "anthropic": os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514"),
-    "openrouter": os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),  # FREE tier
+    "openrouter": os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
     "openai_compat": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
 }
 
-LLM_MODEL = LLM_MODELS.get(LLM_PROVIDER, LLM_MODELS["ollama"])
+LLM_MODEL = LLM_MODELS.get(LLM_PROVIDER, LLM_MODELS["groq"])
 
 # Base URLs per provider
 LLM_BASE_URLS = {
+    "groq": "https://api.groq.com/openai/v1",
     "ollama": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
     "openrouter": "https://openrouter.ai/api/v1",
     "openai_compat": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 }
 
-MAX_CONTEXT_MESSAGES = 20  # max memory chunks to include in context
+MAX_CONTEXT_MESSAGES = 12  # fewer high-quality chunks > many low-quality
+
+# RAG Retrieval Quality
+RELEVANCE_THRESHOLD = 1.2   # cosine distance cutoff (0=identical, 2=opposite); lower = stricter
+RECENCY_WEIGHT = 0.15       # 0.0 = pure similarity, 1.0 = pure recency
 
 # Embedding Settings
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-CHUNK_SIZE = 500  # characters per chunk
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 1200   # characters per chunk (matches MiniLM ~256 token window)
+CHUNK_OVERLAP = 150
 
 # ChromaDB
 CHROMA_COLLECTION = "ai_twin_memory"

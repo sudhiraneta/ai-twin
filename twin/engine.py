@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 
-from config import MAX_CONTEXT_MESSAGES
+from config import MAX_CONTEXT_MESSAGES, RELEVANCE_THRESHOLD, RECENCY_WEIGHT
 from memory.vectorstore import VectorStore
 from memory.chunker import Chunk, _ensure_metadata
 from .llm_client import chat_completion
@@ -36,15 +36,17 @@ class TwinEngine:
         self.classifier = ChunkClassifier()
         self.conversation_history: list[dict] = []
         self._message_count = 0
+        self._cached_persona_prompt: str | None = None
 
     def _get_persona_prompt(self) -> str:
-        """Build persona prompt from skill files (data-driven, not hardcoded).
-        Falls back to stored system_prompt if no skill files exist yet."""
+        """Build persona prompt from skill files (cached for speed).
+        Call reload_persona() to refresh after skill files update."""
+        if self._cached_persona_prompt:
+            return self._cached_persona_prompt
         from persona.skills import build_persona_from_skills
         skills_prompt = build_persona_from_skills()
-        if skills_prompt:
-            return skills_prompt
-        return self.persona.system_prompt
+        self._cached_persona_prompt = skills_prompt or self.persona.system_prompt
+        return self._cached_persona_prompt
 
     def chat(self, user_message: str) -> str:
         """Send a message to the twin and get a response."""
@@ -53,7 +55,7 @@ class TwinEngine:
         # Enable data collection every ~5 messages
         enable_data_collection = (self._message_count % 5 == 0)
 
-        memory_context = self._retrieve_memories(user_message)
+        memory_context = self._retrieve_memories_dimension_aware(user_message)
         dimension_context = self._get_dimension_context(user_message)
 
         system_prompt = build_system_prompt(
@@ -84,7 +86,7 @@ class TwinEngine:
 
     def decide(self, question: str) -> DecisionResponse:
         """Analyze a decision question with dual-lens (your decision vs ideal)."""
-        memory_context = self._retrieve_memories(question)
+        memory_context = self._retrieve_memories_dimension_aware(question)
 
         # Include decision history from persona if available
         decision_history_context = ""
@@ -147,6 +149,55 @@ class TwinEngine:
         count = self.vector_store.ingest([chunk])
         return {"status": "learned", "chunks_added": count, "data_point": data_point}
 
+    @staticmethod
+    def _format_memory_line(r: dict) -> str:
+        """Format a single memory result into a prefixed line for prompt injection."""
+        source = r["metadata"].get("source", "unknown")
+        title = r["metadata"].get("title", "")
+        timestamp = r["metadata"].get("timestamp", "")
+        mem_type = r["metadata"].get("type", "")
+        pillar = r["metadata"].get("pillar", "")
+
+        if mem_type == "note":
+            prefix = f"[Apple Note - {title} | {timestamp[:10]}]"
+        elif mem_type == "browser_daily":
+            prefix = f"[Browser Activity | {timestamp[:10]}]"
+        elif mem_type == "browser_domain":
+            prefix = f"[Browser/{title} | {timestamp[:10]}]"
+        elif mem_type == "singularity_entry":
+            prefix = f"[Singularity/{pillar} - {title} | {timestamp[:10]}]"
+        elif mem_type == "task":
+            prefix = f"[Task/{pillar} | {timestamp[:10]}]"
+        elif mem_type == "body_gym":
+            prefix = f"[Gym Tracker | {timestamp[:10]}]"
+        elif mem_type == "body_nutrition":
+            prefix = f"[Nutrition | {timestamp[:10]}]"
+        elif mem_type == "weekly_review":
+            prefix = f"[Weekly Review | {timestamp[:10]}]"
+        elif mem_type == "soul_checkin":
+            prefix = f"[Soul Checkin | {timestamp[:10]}]"
+        elif mem_type == "goals_completed":
+            prefix = f"[Goals Completed | {timestamp[:10]}]"
+        elif mem_type == "card_counters":
+            prefix = f"[Rep Milestones | {timestamp[:10]}]"
+        elif mem_type == "plan_note":
+            prefix = f"[30-Day Plan | {timestamp[:10]}]"
+        elif mem_type == "week_carry":
+            prefix = f"[Week Summary | {timestamp[:10]}]"
+        elif mem_type == "pillar_journal":
+            prefix = f"[Journal/{pillar} | {title}]"
+        elif mem_type == "data_point":
+            prefix = f"[self-reported - {title} | {timestamp[:10]}]"
+        else:
+            prefix = f"[{source}"
+            if title:
+                prefix += f" - {title}"
+            if timestamp:
+                prefix += f" | {timestamp[:10]}"
+            prefix += "]"
+
+        return f"{prefix}\n{r['text']}"
+
     def _retrieve_memories(self, query: str) -> str | None:
         """Retrieve relevant conversation memories for context."""
         if self.vector_store.count() == 0:
@@ -160,54 +211,7 @@ class TwinEngine:
         if not results:
             return None
 
-        memory_lines = []
-        for r in results:
-            source = r["metadata"].get("source", "unknown")
-            title = r["metadata"].get("title", "")
-            timestamp = r["metadata"].get("timestamp", "")
-            mem_type = r["metadata"].get("type", "")
-            pillar = r["metadata"].get("pillar", "")
-
-            if mem_type == "note":
-                prefix = f"[Apple Note - {title} | {timestamp[:10]}]"
-            elif mem_type == "browser_daily":
-                prefix = f"[Browser Activity | {timestamp[:10]}]"
-            elif mem_type == "browser_domain":
-                prefix = f"[Browser/{title} | {timestamp[:10]}]"
-            elif mem_type == "singularity_entry":
-                prefix = f"[Singularity/{pillar} - {title} | {timestamp[:10]}]"
-            elif mem_type == "task":
-                prefix = f"[Task/{pillar} | {timestamp[:10]}]"
-            elif mem_type == "body_gym":
-                prefix = f"[Gym Tracker | {timestamp[:10]}]"
-            elif mem_type == "body_nutrition":
-                prefix = f"[Nutrition | {timestamp[:10]}]"
-            elif mem_type == "weekly_review":
-                prefix = f"[Weekly Review | {timestamp[:10]}]"
-            elif mem_type == "soul_checkin":
-                prefix = f"[Soul Checkin | {timestamp[:10]}]"
-            elif mem_type == "goals_completed":
-                prefix = f"[Goals Completed | {timestamp[:10]}]"
-            elif mem_type == "card_counters":
-                prefix = f"[Rep Milestones | {timestamp[:10]}]"
-            elif mem_type == "plan_note":
-                prefix = f"[30-Day Plan | {timestamp[:10]}]"
-            elif mem_type == "week_carry":
-                prefix = f"[Week Summary | {timestamp[:10]}]"
-            elif mem_type == "pillar_journal":
-                prefix = f"[Journal/{pillar} | {title}]"
-            elif mem_type == "data_point":
-                prefix = f"[self-reported - {title} | {timestamp[:10]}]"
-            else:
-                prefix = f"[{source}"
-                if title:
-                    prefix += f" - {title}"
-                if timestamp:
-                    prefix += f" | {timestamp[:10]}"
-                prefix += "]"
-
-            memory_lines.append(f"{prefix}\n{r['text']}")
-
+        memory_lines = [self._format_memory_line(r) for r in results]
         memories_text = "\n\n---\n\n".join(memory_lines)
         return MEMORY_CONTEXT_TEMPLATE.format(memories=memories_text)
 
@@ -262,14 +266,19 @@ class TwinEngine:
 
         # Dimension-targeted search (5 per relevant dimension)
         for dim in relevant_dims[:3]:  # limit to top 3 dimensions
-            dim_results = self.vector_store.search_by_dimension(query, dim, n_results=5)
+            dim_results = self.vector_store.search_by_dimension(
+                query, dim, n_results=5, max_distance=RELEVANCE_THRESHOLD,
+            )
             for r in dim_results:
                 if r["id"] not in seen_ids:
                     seen_ids.add(r["id"])
                     results.append(r)
 
-        # General search for breadth
-        general_results = self.vector_store.search(query, n_results=MAX_CONTEXT_MESSAGES)
+        # General search for breadth (with recency + keyword reranking)
+        general_results = self.vector_store.search_with_recency(
+            query, n_results=MAX_CONTEXT_MESSAGES,
+            max_distance=RELEVANCE_THRESHOLD, recency_weight=RECENCY_WEIGHT,
+        )
         for r in general_results:
             if r["id"] not in seen_ids:
                 seen_ids.add(r["id"])
@@ -281,60 +290,35 @@ class TwinEngine:
         if not results:
             return None
 
-        memory_lines = []
-        for r in results:
-            source = r["metadata"].get("source", "unknown")
-            title = r["metadata"].get("title", "")
-            timestamp = r["metadata"].get("timestamp", "")
-            mem_type = r["metadata"].get("type", "")
-            pillar = r["metadata"].get("pillar", "")
-
-            if mem_type == "note":
-                prefix = f"[Apple Note - {title} | {timestamp[:10]}]"
-            elif mem_type == "browser_daily":
-                prefix = f"[Browser Activity | {timestamp[:10]}]"
-            elif mem_type == "browser_domain":
-                prefix = f"[Browser/{title} | {timestamp[:10]}]"
-            elif mem_type == "singularity_entry":
-                prefix = f"[Singularity/{pillar} - {title} | {timestamp[:10]}]"
-            elif mem_type == "task":
-                prefix = f"[Task/{pillar} | {timestamp[:10]}]"
-            elif mem_type == "body_gym":
-                prefix = f"[Gym Tracker | {timestamp[:10]}]"
-            elif mem_type == "body_nutrition":
-                prefix = f"[Nutrition | {timestamp[:10]}]"
-            elif mem_type == "weekly_review":
-                prefix = f"[Weekly Review | {timestamp[:10]}]"
-            elif mem_type == "soul_checkin":
-                prefix = f"[Soul Checkin | {timestamp[:10]}]"
-            elif mem_type == "goals_completed":
-                prefix = f"[Goals Completed | {timestamp[:10]}]"
-            elif mem_type == "card_counters":
-                prefix = f"[Rep Milestones | {timestamp[:10]}]"
-            elif mem_type == "plan_note":
-                prefix = f"[30-Day Plan | {timestamp[:10]}]"
-            elif mem_type == "week_carry":
-                prefix = f"[Week Summary | {timestamp[:10]}]"
-            elif mem_type == "pillar_journal":
-                prefix = f"[Journal/{pillar} | {title}]"
-            elif mem_type == "data_point":
-                prefix = f"[self-reported - {title} | {timestamp[:10]}]"
-            else:
-                prefix = f"[{source}"
-                if title:
-                    prefix += f" - {title}"
-                if timestamp:
-                    prefix += f" | {timestamp[:10]}"
-                prefix += "]"
-
-            memory_lines.append(f"{prefix}\n{r['text']}")
-
+        memory_lines = [self._format_memory_line(r) for r in results]
         memories_text = "\n\n---\n\n".join(memory_lines)
         return MEMORY_CONTEXT_TEMPLATE.format(memories=memories_text)
 
     def search_memory(self, query: str, n_results: int = 10) -> list[dict]:
-        """Search the twin's memory directly."""
-        return self.vector_store.search(query=query, n_results=n_results)
+        """Search the twin's memory with dimension-aware boosting."""
+        relevant_dims = self.classifier.classify_text(query)
+
+        seen_ids = set()
+        results = []
+
+        # Dimension-targeted results first (higher relevance)
+        for dim in relevant_dims[:3]:
+            dim_results = self.vector_store.search_by_dimension(query, dim, n_results=n_results // 2)
+            for r in dim_results:
+                if r["id"] not in seen_ids:
+                    seen_ids.add(r["id"])
+                    results.append(r)
+
+        # Fill remaining with general search
+        general = self.vector_store.search(query=query, n_results=n_results)
+        for r in general:
+            if r["id"] not in seen_ids:
+                seen_ids.add(r["id"])
+                results.append(r)
+
+        # Sort by distance (lower = more relevant) and limit
+        results.sort(key=lambda r: r.get("distance", 1.0))
+        return results[:n_results]
 
     def reset_conversation(self):
         """Clear the current conversation history (not memory)."""
@@ -342,6 +326,7 @@ class TwinEngine:
         self._message_count = 0
 
     def reload_persona(self):
-        """Reload persona profile from disk."""
+        """Reload persona profile and clear cached prompt."""
         from persona.profile import PersonaProfile
         self.persona = PersonaProfile.load()
+        self._cached_persona_prompt = None

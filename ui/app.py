@@ -345,24 +345,55 @@ elif page == "Data Sources":
             with col2:
                 st.caption(f"{confidence:.0%} confidence")
 
-    # --- Quick Search (read-only) ---
+    # --- Search Memory ---
     st.markdown("---")
-    st.subheader("Search Memory (read-only)")
-    query = st.text_input("Search...", placeholder="e.g., 'Python projects' or 'gym this week'")
+    st.subheader("Search Memory")
+
+    search_col1, search_col2, search_col3 = st.columns([3, 1, 1])
+    with search_col1:
+        query = st.text_input("Search...", placeholder="e.g., 'Python projects' or 'gym this week'")
+    with search_col2:
+        dim_options = ["All dimensions"] + sorted(dims.keys()) if status and status.get("dimensions") else ["All dimensions"]
+        dim_filter = st.selectbox("Filter by dimension", dim_options, key="search_dim_filter")
+    with search_col3:
+        n_results = st.slider("Results", 5, 30, 10, key="search_n")
+
     if query:
+        search_body = {"query": query, "n_results": n_results}
+        if dim_filter != "All dimensions":
+            search_body["dimension"] = dim_filter
+
         with st.spinner("Searching..."):
-            results = api_call("post", "/memory/search", json={"query": query, "n_results": 10})
+            results = api_call("post", "/memory/search", json=search_body)
+
         if results and results.get("results"):
             for r in results["results"]:
                 meta = r.get("metadata", {})
                 source = meta.get("source", "?")
                 dim = meta.get("dimension", "?")
                 title = meta.get("title", "")
-                ts = meta.get("timestamp", "")[:10]
-                text = r["text"][:200]
-                st.caption(f"[{source}/{dim}] {title} | {ts}")
-                st.write(text)
-                st.markdown("---")
+                ts = meta.get("timestamp", "")
+                ts_short = ts[:10] if ts else ""
+                mem_type = meta.get("type", "")
+                distance = r.get("distance", 0)
+                relevance = max(0, round((1 - distance) * 100))
+
+                TYPE_ICONS = {
+                    "user_message": "💬", "conversation_pair": "💬",
+                    "data_point": "📝", "singularity_entry": "⚡",
+                    "note": "📒", "browser_daily": "🌐", "browser_domain": "🔗",
+                    "task": "📋", "body_gym": "💪", "body_nutrition": "🥗",
+                    "weekly_review": "📊", "soul_checkin": "🌙",
+                    "goals_completed": "🏆", "plan_note": "📅",
+                    "pillar_journal": "📓",
+                }
+                icon = TYPE_ICONS.get(mem_type, "📄")
+
+                with st.expander(f"{icon} [{dim}] {title or r['text'][:50]} — {relevance}% match"):
+                    st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts_short}")
+                    st.write(r["text"])
+        else:
+            st.info("No results found. Try a different search.")
 
 
 # ======================================================================
