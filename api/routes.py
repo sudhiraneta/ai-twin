@@ -33,44 +33,6 @@ def get_vector_store() -> VectorStore:
     return _vector_store
 
 
-# --- Chat ---
-
-class ChatRequest(BaseModel):
-    message: str
-
-
-class ChatResponse(BaseModel):
-    response: str
-
-
-@router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
-    twin = get_twin()
-    response = twin.chat(req.message)
-    return ChatResponse(response=response)
-
-
-@router.post("/chat/reset")
-def reset_chat():
-    twin = get_twin()
-    twin.reset_conversation()
-    return {"status": "conversation reset"}
-
-
-# --- Decision Mode ---
-
-class DecideRequest(BaseModel):
-    question: str
-
-
-@router.post("/decide")
-def decide(req: DecideRequest):
-    """Get a dual-lens decision analysis: your likely decision vs ideal decision."""
-    twin = get_twin()
-    result = twin.decide(req.question)
-    return result.to_dict()
-
-
 # --- Learn ---
 
 class LearnRequest(BaseModel):
@@ -433,3 +395,157 @@ def extract_single_dimension(req: ExtractDimensionRequest):
         "evidence_count": dim.evidence_count if dim else 0,
         "traits": dim.traits if dim else {},
     }
+
+
+# --- Ask Persona (context + LLM answer) ---
+
+class AskPersonaRequest(BaseModel):
+    query: str
+    context: str
+
+
+@router.post("/persona/ask")
+def ask_persona(req: AskPersonaRequest):
+    """Generate an LLM answer about the user given fetched context."""
+    from twin.llm_client import chat_completion
+    from persona.profile import PersonaProfile
+
+    profile = PersonaProfile.load()
+    system = (
+        "You are analyzing a person's data to answer questions about them. "
+        "Use ONLY the context provided below — do not fabricate information. "
+        "If the context doesn't contain relevant data, say so clearly.\n\n"
+        f"Persona summary: {profile.system_prompt[:500]}\n\n"
+        f"Context:\n{req.context}"
+    )
+
+    answer = chat_completion(
+        system=system,
+        messages=[{"role": "user", "content": req.query}],
+        max_tokens=2048,
+    )
+    return {"answer": answer}
+
+
+# --- Wardrobe (Google Photos) ---
+
+@router.post("/wardrobe/sync")
+def sync_wardrobe(days_back: int = 60):
+    """Sync Google Photos metadata for wardrobe/travel analysis."""
+    from connectors.photos_connector import PhotosConnector
+
+    connector = PhotosConnector()
+    try:
+        chunks = connector.fetch(days_back=days_back)
+    except Exception as e:
+        return {"error": str(e)}
+
+    if chunks:
+        store = get_vector_store()
+        count = store.ingest(chunks)
+        connector.set_last_sync(__import__("time").time(), chunks_total=count)
+        return {"status": "success", "photos_synced": count, "total_chunks": len(chunks)}
+    return {"status": "no_photos", "photos_synced": 0}
+
+
+@router.get("/wardrobe")
+def get_wardrobe():
+    """Get wardrobe summary — outfits, styles, and travel from Google Photos."""
+    store = get_vector_store()
+
+    # Search for outfit and wardrobe data
+    outfit_chunks = store.search("outfit clothing style wardrobe", n_results=20)
+    travel_chunks = store.search("travel trip visit city", n_results=20)
+    food_chunks = store.search("restaurant cafe food meal", n_results=10)
+
+    return {
+        "outfits": [{"text": c["text"][:300], "date": c["metadata"].get("timestamp", "")[:10]}
+                    for c in outfit_chunks if c["metadata"].get("type") in ("photo_daily", "wardrobe_summary")],
+        "travel": [{"text": c["text"][:300], "date": c["metadata"].get("timestamp", "")[:10]}
+                   for c in travel_chunks if c["metadata"].get("type") == "photo_daily"],
+        "food": [{"text": c["text"][:300], "date": c["metadata"].get("timestamp", "")[:10]}
+                 for c in food_chunks if c["metadata"].get("source") == "google_photos"],
+        "total_photos_indexed": sum(1 for c in outfit_chunks + travel_chunks
+                                    if c["metadata"].get("source") == "google_photos"),
+    }
+
+
+# --- Metrics (SQL) ---
+
+@router.get("/metrics/gym")
+def gym_metrics(week_id: str | None = None):
+    """Get gym session data for a given week."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.gym_this_week(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/gym/streak")
+def gym_streak():
+    """Get gym session trend over last 8 weeks."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.gym_streak()
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/nutrition")
+def nutrition_metrics(week_id: str | None = None):
+    """Get nutrition data for a given week."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.nutrition_this_week(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/communications")
+def comms_metrics(week_id: str | None = None):
+    """Get communication interaction data for a given week."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.comms_this_week(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/tasks")
+def task_metrics(week_id: str | None = None):
+    """Get task completion data for a given week."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.tasks_this_week(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/wellness")
+def wellness_metrics(week_id: str | None = None):
+    """Get wellness habit data for a given week."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.wellness_this_week(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.get("/metrics/weekly-summary")
+def weekly_summary_metrics(week_id: str | None = None):
+    """Get full weekly overview with all metrics."""
+    from db import MetricStore
+    store = MetricStore()
+    result = store.weekly_summary(week_id)
+    return {"data": result.data, "summary": result.summary, "time_range": result.time_range}
+
+
+@router.post("/metrics/query")
+def hybrid_query(req: SearchRequest):
+    """Smart hybrid query — routes to SQL, RAG, or both based on question."""
+    twin = get_twin()
+    return twin.hybrid_context(req.query)
+
+
+@router.get("/wardrobe/albums")
+def list_albums():
+    """List Google Photos albums."""
+    from connectors.photos_connector import PhotosConnector
+    connector = PhotosConnector()
+    albums = connector.get_albums()
+    return {"albums": albums}

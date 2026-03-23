@@ -4,6 +4,7 @@ from .browser_connector import BrowserConnector
 from .task_connector import TaskConnector
 from .body_connector import BodyConnector
 from .analytics_connector import AnalyticsConnector
+from .photos_connector import PhotosConnector
 
 ALL_CONNECTORS = {
     "apple_notes": NotesConnector,
@@ -12,4 +13,5 @@ ALL_CONNECTORS = {
     "tasks": TaskConnector,
     "body": BodyConnector,
     "analytics": AnalyticsConnector,
+    "google_photos": PhotosConnector,
 }

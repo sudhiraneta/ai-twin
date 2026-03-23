@@ -228,28 +228,17 @@ def test_engine_search_memory():
     assert isinstance(results, list)
 
 
-def test_engine_parse_decision():
-    from twin.engine import TwinEngine
-    engine = TwinEngine()
-    raw = "## Your Likely Decision\nGo with A.\n\n## Ideal Decision\nAlso A.\n\n## Gap Analysis\nNone.\n\n## Confidence Score\nHIGH\n\n## Follow-Up Questions\n- Q1?"
-    parsed = engine._parse_decision_response(raw)
-    assert "A" in parsed.your_decision
-    assert parsed.confidence_score.startswith("HIGH")
+def test_api_persona_ask():
+    """Verify the /persona/ask endpoint exists and accepts requests."""
+    from api.routes import router
+    routes = [r.path for r in router.routes]
+    assert "/persona/ask" in routes
 
 
-def test_engine_dimension_context():
-    from twin.engine import TwinEngine
-    engine = TwinEngine()
-    # Should not crash even with empty dimensions
-    ctx = engine._get_dimension_context("random query")
-    assert ctx is None or isinstance(ctx, str)
-
-
-def test_prompts_build():
-    from twin.prompts import build_system_prompt
-    prompt = build_system_prompt(persona_prompt="test", dimension_context="dim test")
-    assert "test" in prompt
-    assert "dim test" in prompt
+def test_prompts_templates():
+    from twin.prompts import MEMORY_CONTEXT_TEMPLATE, DIMENSION_CONTEXT_TEMPLATE
+    assert "{memories}" in MEMORY_CONTEXT_TEMPLATE
+    assert "{dimension_summaries}" in DIMENSION_CONTEXT_TEMPLATE
 
 
 def test_config_constants():
@@ -281,8 +270,9 @@ def test_daily_loop_status():
 def test_api_routes_registered():
     from api.routes import router
     routes = [r.path for r in router.routes]
-    required = ["/chat", "/decide", "/learn", "/memory/search", "/persona",
-                "/sync/run", "/persona/dimensions", "/persona/evolution"]
+    required = ["/learn", "/memory/search", "/persona",
+                "/sync/run", "/persona/dimensions", "/persona/evolution",
+                "/persona/ask", "/wardrobe/sync", "/wardrobe"]
     for path in required:
         assert path in routes, f"Missing route: {path}"
 
@@ -501,9 +491,7 @@ ALL_TESTS = [
     ("engine_init", test_engine_init),
     ("engine_learn", test_engine_learn),
     ("engine_search_memory", test_engine_search_memory),
-    ("engine_parse_decision", test_engine_parse_decision),
-    ("engine_dimension_context", test_engine_dimension_context),
-    ("prompts_build", test_prompts_build),
+    ("prompts_templates", test_prompts_templates),
     ("config_constants", test_config_constants),
     ("daily_loop_init", test_daily_loop_init),
     ("daily_loop_status", test_daily_loop_status),
@@ -514,6 +502,7 @@ ALL_TESTS = [
     ("api_persona_dimensions", test_api_persona_dimensions),
     ("api_sync_status", test_api_sync_status),
     ("api_persona_evolution", test_api_persona_evolution),
+    ("api_persona_ask", test_api_persona_ask),
     ("parsers_gemini_html", test_parsers_gemini_html),
     ("parsers_youtube", test_parsers_youtube),
     ("connectors_all", test_connectors_all),
@@ -526,7 +515,6 @@ ALL_TESTS = [
     ("ui_pillar_grouping", test_ui_pillar_grouping),
     ("ui_normalized_files", test_ui_normalized_files),
     ("ui_learn_endpoint", test_ui_learn_endpoint),
-    ("ui_chat_reset", test_ui_chat_reset),
 ]
 
 

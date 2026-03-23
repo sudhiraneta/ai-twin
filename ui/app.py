@@ -30,22 +30,19 @@ def api_call(method: str, endpoint: str, **kwargs) -> dict | None:
 
 # --- Sidebar ---
 st.sidebar.title(TWIN_NAME)
-page = st.sidebar.radio("Navigate", ["Chat", "Decide", "Persona", "Data Sources", "Learn"])
+page = st.sidebar.radio("Navigate", ["Ask Persona", "Persona", "Wardrobe", "Data", "Learn"])
 
 stats = api_call("get", "/memory/stats")
 if stats:
     st.sidebar.metric("Memory Chunks", stats.get("total_chunks", 0))
+    by_dim = stats.get("by_dimension", {})
+    if by_dim:
+        top = sorted(by_dim.items(), key=lambda x: -x[1])[:5]
+        st.sidebar.caption("Top dimensions: " + ", ".join(f"{d} ({c})" for d, c in top))
 
 st.sidebar.markdown("---")
-
-# Quick teach in sidebar
-st.sidebar.subheader(f"Quick Teach")
-learn_input = st.sidebar.text_area(
-    "Tell me something...",
-    placeholder="e.g., 'I prefer async communication'",
-    height=60,
-    key="learn_input",
-)
+st.sidebar.subheader("Quick Teach")
+learn_input = st.sidebar.text_area("Tell me something...", placeholder="e.g., 'I prefer async communication'", height=60, key="learn_input")
 if st.sidebar.button("Save") and learn_input:
     result = api_call("post", "/learn", json={"data_point": learn_input})
     if result and result.get("status") == "learned":
@@ -53,83 +50,101 @@ if st.sidebar.button("Save") and learn_input:
 
 
 # ======================================================================
-# Chat Page
+# Ask Persona — Shows fetched context (top-k) + generated LLM answer
 # ======================================================================
-if page == "Chat":
-    st.title(f"Chat with {TWIN_NAME}")
-    st.caption("Your twin remembers everything — conversations, notes, browsing, tasks, and more.")
+if page == "Ask Persona":
+    st.title("Ask About Me")
+    st.caption("Ask anything about yourself. See the raw context fetched from memory (top-k chunks) and the generated answer side by side.")
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    query = st.text_input("What do you want to know?", placeholder="e.g., 'What are my coding habits?' or 'What do I eat?'")
 
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+    col_filter1, col_filter2 = st.columns(2)
+    with col_filter1:
+        dim_options = ["All dimensions"]
+        dims_data = api_call("get", "/persona/dimensions")
+        if dims_data:
+            dim_options += sorted(dims_data["dimensions"].keys())
+        dim_filter = st.selectbox("Filter by dimension", dim_options, key="ask_dim")
+    with col_filter2:
+        top_k = st.slider("Top-K context chunks", 3, 30, 10, key="ask_topk")
 
-    if prompt := st.chat_input("Ask your twin anything..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
+    if query and st.button("Ask", type="primary"):
+        # Fetch raw context chunks
+        search_body = {"query": query, "n_results": top_k}
+        if dim_filter != "All dimensions":
+            search_body["dimension"] = dim_filter
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                result = api_call("post", "/chat", json={"message": prompt})
-                if result:
-                    response = result["response"]
-                    st.write(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+        with st.spinner("Fetching context..."):
+            search_results = api_call("post", "/memory/search", json=search_body)
 
-    if st.sidebar.button("Reset Conversation"):
-        api_call("post", "/chat/reset")
-        st.session_state.messages = []
-        st.rerun()
+        context_chunks = []
+        if search_results and search_results.get("results"):
+            context_chunks = search_results["results"]
 
+        # Build context text for LLM
+        context_text = ""
+        for i, r in enumerate(context_chunks):
+            meta = r.get("metadata", {})
+            source = meta.get("source", "?")
+            dim = meta.get("dimension", "?")
+            ts = meta.get("timestamp", "")[:10]
+            title = meta.get("title", "")
+            context_text += f"[{source}/{dim} | {title} | {ts}]\n{r['text']}\n\n---\n\n"
 
-# ======================================================================
-# Decide Page
-# ======================================================================
-elif page == "Decide":
-    st.title("Decision Mode")
-    st.caption("Ask a decision question. Your twin shows what YOU'd decide vs what's IDEAL.")
+        # Generate LLM answer using the context
+        llm_answer = ""
+        if context_text:
+            with st.spinner("Generating answer from context..."):
+                answer_result = api_call("post", "/persona/ask", json={
+                    "query": query,
+                    "context": context_text,
+                })
+                if answer_result:
+                    llm_answer = answer_result.get("answer", "")
 
-    question = st.text_area(
-        "What decision are you facing?",
-        placeholder="e.g., 'Should I switch from Python to Rust for my backend?'",
-        height=100,
-    )
+        # Display side by side
+        st.markdown("---")
 
-    if st.button("Analyze Decision", type="primary") and question:
-        with st.spinner("Analyzing through your lens and the ideal lens..."):
-            result = api_call("post", "/decide", json={"question": question})
+        left, right = st.columns([1, 1])
 
-        if result:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("### Your Likely Decision")
-                st.info(result.get("your_decision", "No prediction available"))
-            with col2:
-                st.markdown("### Ideal Decision")
-                st.success(result.get("ideal_decision", "No ideal available"))
+        with left:
+            st.subheader(f"Fetched Context ({len(context_chunks)} chunks)")
+            if context_chunks:
+                for i, r in enumerate(context_chunks):
+                    meta = r.get("metadata", {})
+                    source = meta.get("source", "?")
+                    dim = meta.get("dimension", "?")
+                    mem_type = meta.get("type", "?")
+                    title = meta.get("title", "")
+                    ts = meta.get("timestamp", "")[:10]
+                    distance = r.get("distance", 0)
+                    relevance = max(0, round((1 - distance) * 100))
 
-            gap = result.get("reasoning_gap", "")
-            if gap:
-                st.markdown("### Gap Analysis")
-                st.warning(gap)
+                    TYPE_ICONS = {
+                        "user_message": "💬", "conversation_pair": "💬",
+                        "data_point": "📝", "singularity_entry": "⚡",
+                        "note": "📒", "browser_daily": "🌐", "browser_domain": "🔗",
+                        "task": "📋", "body_gym": "💪", "body_nutrition": "🥗",
+                        "weekly_review": "📊", "soul_checkin": "🌙",
+                        "goals_completed": "🏆", "plan_note": "📅",
+                        "pillar_journal": "📓", "photo_daily": "📸",
+                    }
+                    icon = TYPE_ICONS.get(mem_type, "📄")
 
-            confidence = result.get("confidence_score", "")
-            if confidence:
-                st.markdown("### Confidence")
-                st.caption(confidence)
+                    with st.expander(f"{icon} #{i+1} [{dim}] {relevance}% — {title[:40] or r['text'][:40]}"):
+                        st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts}")
+                        st.write(r["text"])
+            else:
+                st.info("No context found for this query.")
 
-            follow_ups = result.get("follow_up_questions", [])
-            if follow_ups:
-                st.markdown("### Help me understand you better")
-                for i, q in enumerate(follow_ups):
-                    answer = st.text_input(q, key=f"followup_{i}")
-                    if answer:
-                        if st.button(f"Submit", key=f"submit_{i}"):
-                            api_call("post", "/learn", json={"data_point": f"Q: {q} A: {answer}"})
-                            st.success("Learned!")
+        with right:
+            st.subheader("Generated Answer")
+            if llm_answer:
+                st.markdown(llm_answer)
+            elif not context_chunks:
+                st.info("No data to generate an answer from.")
+            else:
+                st.warning("LLM answer not available. Check API connection.")
 
 
 # ======================================================================
@@ -137,16 +152,14 @@ elif page == "Decide":
 # ======================================================================
 elif page == "Persona":
     st.title("Your Persona Profile")
-    st.caption(f"How {TWIN_NAME} understands you across 13 life dimensions. Read-only — updated by the daily learning loop.")
+    st.caption(f"How {TWIN_NAME} understands you across 13 life dimensions. Read-only.")
 
-    # Fetch dimensions
     dims_data = api_call("get", "/persona/dimensions")
     persona = api_call("get", "/persona")
 
     if dims_data and dims_data.get("dimensions"):
         dimensions = dims_data["dimensions"]
 
-        # Summary metrics
         populated = sum(1 for d in dimensions.values() if d.get("has_traits"))
         total_evidence = sum(d.get("evidence_count", 0) for d in dimensions.values())
         avg_confidence = sum(d.get("confidence", 0) for d in dimensions.values() if d.get("has_traits"))
@@ -160,17 +173,14 @@ elif page == "Persona":
 
         st.markdown("---")
 
-        # Group by pillar
         PILLAR_ORDER = ["MIND", "BODY", "SOUL", "SOCIAL", "PURPOSE"]
         PILLAR_ICONS = {"MIND": "🧠", "BODY": "💪", "SOUL": "🎨", "SOCIAL": "🤝", "PURPOSE": "🎯"}
 
-        # Build pillar groups
         pillar_groups = {}
         for dim_name, dim_info in dimensions.items():
             pillar = dim_info.get("pillar", "OTHER")
             pillar_groups.setdefault(pillar, []).append((dim_name, dim_info))
 
-        # Render each pillar as a section
         for pillar in PILLAR_ORDER:
             if pillar not in pillar_groups:
                 continue
@@ -189,7 +199,6 @@ elif page == "Persona":
                     has_traits = dim_info.get("has_traits", False)
                     updated = dim_info.get("last_updated", "")
 
-                    # Status indicator
                     if has_traits and confidence >= 0.5:
                         status_color = "🟢"
                     elif has_traits:
@@ -202,20 +211,17 @@ elif page == "Persona":
                     if updated:
                         st.caption(f"Updated: {updated[:10]}")
 
-                    # Show traits in expander (read-only)
                     if has_traits:
                         summary = dim_info.get("summary", "")
                         if summary:
                             with st.expander("View traits"):
                                 st.markdown(summary)
 
-        # System prompt (read-only)
         if persona:
             st.markdown("---")
-            with st.expander("System Prompt (generated from all dimensions)"):
+            with st.expander("System Prompt"):
                 st.code(persona.get("system_prompt", "Not generated yet"), language=None)
 
-        # Evolution
         st.markdown("---")
         st.subheader("Persona Evolution")
         evolution = api_call("get", "/persona/evolution")
@@ -225,80 +231,107 @@ elif page == "Persona":
             for snap in reversed(snapshots[-5:]):
                 date = snap.get("date", "")
                 dims = snap.get("dimensions", {})
-                populated = sum(1 for d in dims.values() if d.get("traits"))
-                st.write(f"**{date}**: {populated}/13 dimensions populated")
+                pop = sum(1 for d in dims.values() if d.get("traits"))
+                st.write(f"**{date}**: {pop}/13 dimensions populated")
         else:
-            st.caption("No evolution snapshots yet. Run the daily loop to start tracking.")
+            st.caption("No evolution snapshots yet.")
 
 
 # ======================================================================
-# Data Sources Page — Last synced / imported (read-only dashboard)
+# Wardrobe Page
 # ======================================================================
-elif page == "Data Sources":
+elif page == "Wardrobe":
+    st.title("Digital Wardrobe & Travel")
+    st.caption("Your style, outfits, and places visited — powered by Google Photos.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Sync Google Photos", type="primary"):
+            with st.spinner("Syncing photo metadata..."):
+                result = api_call("post", "/wardrobe/sync")
+            if result and result.get("status") == "success":
+                st.success(f"Synced {result['photos_synced']} photo chunks!")
+            elif result and result.get("error"):
+                st.error(result["error"])
+    with col2:
+        st.caption("Only pulls metadata (dates, locations, tags) — no image downloads.")
+
+    st.markdown("---")
+
+    wardrobe = api_call("get", "/wardrobe")
+    if wardrobe:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Photos Indexed", wardrobe.get("total_photos_indexed", 0))
+        col2.metric("Outfits", len(wardrobe.get("outfits", [])))
+        col3.metric("Travel Spots", len(wardrobe.get("travel", [])))
+
+        st.markdown("---")
+
+        if wardrobe.get("outfits"):
+            st.subheader("Outfit History")
+            for item in wardrobe["outfits"]:
+                with st.expander(f"{item.get('date', '?')}"):
+                    st.write(item["text"])
+
+        if wardrobe.get("travel"):
+            st.subheader("Places Visited")
+            for item in wardrobe["travel"]:
+                with st.expander(f"{item.get('date', '?')}"):
+                    st.write(item["text"])
+
+        if wardrobe.get("food"):
+            st.subheader("Food & Dining")
+            for item in wardrobe["food"]:
+                with st.expander(f"{item.get('date', '?')}"):
+                    st.write(item["text"])
+
+        if not wardrobe.get("outfits") and not wardrobe.get("travel"):
+            st.info("No photos synced yet. Click 'Sync Google Photos' above.")
+
+    with st.expander("Google Photos Albums"):
+        albums = api_call("get", "/wardrobe/albums")
+        if albums and albums.get("albums"):
+            for album in albums["albums"]:
+                st.write(f"**{album.get('title', 'Untitled')}** — {album.get('count', 0)} photos")
+        else:
+            st.caption("No albums found or not authenticated.")
+
+
+# ======================================================================
+# Data Page — Sources dashboard + search
+# ======================================================================
+elif page == "Data":
     st.title("Data Sources")
-    st.caption("Track what data has been fed to your twin and when. Read-only overview.")
+    st.caption("What data feeds your twin and when.")
 
     status = api_call("get", "/sync/status")
     singularity_status = api_call("get", "/singularity/status")
 
     if status:
-        total = status.get("total_chunks", 0)
-        st.metric("Total Memory Chunks", total)
+        st.metric("Total Memory Chunks", status.get("total_chunks", 0))
         st.markdown("---")
 
-    # --- Singularity Connectors ---
-    st.subheader("Singularity Sources (live sync)")
-    st.caption("These sync incrementally from your Singularity project.")
-
+    # Singularity sources
+    st.subheader("Live Sources (Singularity)")
     if singularity_status and singularity_status.get("sources"):
-        sources = singularity_status["sources"]
-
-        SOURCE_ICONS = {
-            "apple_notes": "📒",
-            "singularity_db": "⚡",
-            "browser": "🌐",
-            "tasks": "📋",
-            "body": "💪",
-            "analytics": "📊",
-        }
-
+        SOURCE_ICONS = {"apple_notes": "📒", "singularity_db": "⚡", "browser": "🌐", "tasks": "📋", "body": "💪", "analytics": "📊"}
         cols = st.columns(3)
-        for i, (name, info) in enumerate(sources.items()):
+        for i, (name, info) in enumerate(singularity_status["sources"].items()):
             with cols[i % 3]:
                 icon = SOURCE_ICONS.get(name, "📦")
                 last = info.get("last_sync")
                 total = info.get("chunks_total", 0)
-
-                if last:
-                    last_str = dt.fromtimestamp(last).strftime("%Y-%m-%d %H:%M")
-                    age_hours = (dt.now().timestamp() - last) / 3600
-                    if age_hours < 1:
-                        freshness = "🟢 Just synced"
-                    elif age_hours < 24:
-                        freshness = "🟡 Today"
-                    else:
-                        freshness = f"🔴 {int(age_hours / 24)}d ago"
-                else:
-                    last_str = "Never"
-                    freshness = "⚪ Not synced"
-
+                last_str = dt.fromtimestamp(last).strftime("%Y-%m-%d %H:%M") if last else "Never"
                 st.markdown(f"**{icon} {name}**")
-                st.write(f"Chunks: **{total}**")
-                st.write(f"Last sync: {last_str}")
-                st.caption(freshness)
+                st.write(f"Chunks: **{total}** | Last: {last_str}")
 
     st.markdown("---")
 
-    # --- Conversation Imports ---
-    st.subheader("Conversation Imports (file uploads)")
-    st.caption("ChatGPT, Claude, and Gemini conversation exports.")
-
-    # Check what normalized files exist
+    # Conversation imports
+    st.subheader("Conversation Imports")
     from config import NORMALIZED_DIR
     import json as json_lib
-
     IMPORT_ICONS = {"chatgpt": "🤖", "claude": "🟣", "gemini": "🔵", "youtube": "🎬"}
-
     normalized_files = list(NORMALIZED_DIR.glob("*_normalized.json"))
     if normalized_files:
         cols = st.columns(min(len(normalized_files), 4))
@@ -306,94 +339,35 @@ elif page == "Data Sources":
             with cols[i % len(cols)]:
                 platform = f.stem.replace("_normalized", "")
                 icon = IMPORT_ICONS.get(platform, "📄")
-
                 try:
                     data = json_lib.loads(f.read_text())
-                    conv_count = len(data) if isinstance(data, list) else 0
+                    count = len(data) if isinstance(data, list) else 0
                     modified = dt.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
                 except Exception:
-                    conv_count = 0
-                    modified = "unknown"
-
+                    count = 0
+                    modified = "?"
                 st.markdown(f"**{icon} {platform.title()}**")
-                st.write(f"Conversations: **{conv_count}**")
-                st.write(f"Imported: {modified}")
+                st.write(f"Conversations: **{count}** | Imported: {modified}")
     else:
-        st.info("No conversation imports yet. Go to **Learn** to import data.")
+        st.info("No imports yet. Go to Learn to import data.")
 
     st.markdown("---")
 
-    # --- Dimension Coverage ---
+    # Dimension coverage
     st.subheader("Dimension Coverage")
-    st.caption("How well each persona dimension is covered by data.")
-
     if status and status.get("dimensions"):
-        dims = status["dimensions"]
-        for dim_name, info in sorted(dims.items(), key=lambda x: -x[1].get("evidence_count", 0)):
+        for dim_name, info in sorted(status["dimensions"].items(), key=lambda x: -x[1].get("evidence_count", 0)):
             display = info.get("display_name", dim_name)
             evidence = info.get("evidence_count", 0)
             confidence = info.get("confidence", 0)
             has_traits = info.get("has_traits", False)
-
-            # Progress bar
-            bar_value = min(1.0, evidence / 100)  # 100 chunks = full bar
+            bar_value = min(1.0, evidence / 100)
             status_icon = "🟢" if has_traits and confidence >= 0.5 else "🟡" if has_traits else "🔴"
-
             col1, col2 = st.columns([3, 1])
             with col1:
                 st.progress(bar_value, text=f"{status_icon} {display}: {evidence} chunks")
             with col2:
-                st.caption(f"{confidence:.0%} confidence")
-
-    # --- Search Memory ---
-    st.markdown("---")
-    st.subheader("Search Memory")
-
-    search_col1, search_col2, search_col3 = st.columns([3, 1, 1])
-    with search_col1:
-        query = st.text_input("Search...", placeholder="e.g., 'Python projects' or 'gym this week'")
-    with search_col2:
-        dim_options = ["All dimensions"] + sorted(dims.keys()) if status and status.get("dimensions") else ["All dimensions"]
-        dim_filter = st.selectbox("Filter by dimension", dim_options, key="search_dim_filter")
-    with search_col3:
-        n_results = st.slider("Results", 5, 30, 10, key="search_n")
-
-    if query:
-        search_body = {"query": query, "n_results": n_results}
-        if dim_filter != "All dimensions":
-            search_body["dimension"] = dim_filter
-
-        with st.spinner("Searching..."):
-            results = api_call("post", "/memory/search", json=search_body)
-
-        if results and results.get("results"):
-            for r in results["results"]:
-                meta = r.get("metadata", {})
-                source = meta.get("source", "?")
-                dim = meta.get("dimension", "?")
-                title = meta.get("title", "")
-                ts = meta.get("timestamp", "")
-                ts_short = ts[:10] if ts else ""
-                mem_type = meta.get("type", "")
-                distance = r.get("distance", 0)
-                relevance = max(0, round((1 - distance) * 100))
-
-                TYPE_ICONS = {
-                    "user_message": "💬", "conversation_pair": "💬",
-                    "data_point": "📝", "singularity_entry": "⚡",
-                    "note": "📒", "browser_daily": "🌐", "browser_domain": "🔗",
-                    "task": "📋", "body_gym": "💪", "body_nutrition": "🥗",
-                    "weekly_review": "📊", "soul_checkin": "🌙",
-                    "goals_completed": "🏆", "plan_note": "📅",
-                    "pillar_journal": "📓",
-                }
-                icon = TYPE_ICONS.get(mem_type, "📄")
-
-                with st.expander(f"{icon} [{dim}] {title or r['text'][:50]} — {relevance}% match"):
-                    st.caption(f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts_short}")
-                    st.write(r["text"])
-        else:
-            st.info("No results found. Try a different search.")
+                st.caption(f"{confidence:.0%}")
 
 
 # ======================================================================
@@ -401,33 +375,29 @@ elif page == "Data Sources":
 # ======================================================================
 elif page == "Learn":
     st.title(f"Teach {TWIN_NAME}")
-    st.caption("Sync data, import conversations, or tell your twin something. Everything builds who your twin is.")
+    st.caption("Sync data, import conversations, or tell your twin something.")
 
-    # --- Quick Sync ---
     st.subheader("Sync My Data")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Sync Everything", type="primary"):
-            with st.spinner("Syncing all data sources..."):
+            with st.spinner("Syncing..."):
                 result = api_call("post", "/singularity/sync")
             if result and result.get("sources"):
                 total = sum(v.get("chunks_ingested", 0) for v in result["sources"].values() if "error" not in v)
                 st.success(f"Synced {total} new data points.")
-
     with col2:
         if st.button("Run Full Learning Loop"):
-            with st.spinner("Running daily loop (sync + classify + persona)..."):
+            with st.spinner("Running daily loop..."):
                 result = api_call("post", "/sync/run")
             if result:
                 st.success("Learning loop complete!")
 
     st.markdown("---")
 
-    # --- Import Conversations ---
     st.subheader("Import Conversations")
     source = st.selectbox("Platform", ["chatgpt", "claude", "gemini"])
     uploaded_file = st.file_uploader("Upload export file (JSON)", type=["json"])
-
     if uploaded_file and st.button("Import"):
         with st.spinner(f"Parsing {source} data..."):
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/json")}
@@ -438,13 +408,8 @@ elif page == "Learn":
 
     st.markdown("---")
 
-    # --- Teach directly ---
     st.subheader("Tell Your Twin Something")
-    teach_input = st.text_area(
-        "What should your twin know?",
-        placeholder="e.g., 'I switched to a standing desk' or 'I prefer cortados over lattes'",
-        height=80,
-    )
+    teach_input = st.text_area("What should your twin know?", placeholder="e.g., 'I prefer cortados over lattes'", height=80)
     if st.button("Save Data Point") and teach_input:
         result = api_call("post", "/learn", json={"data_point": teach_input})
         if result and result.get("status") == "learned":
