@@ -45,60 +45,66 @@ KEYWORD_RULES: list[tuple[str, str]] = [
      r"docker|kubernetes|git|github|deploy|cicd|ci/cd|backend|frontend|fullstack|"
      r"api|endpoint|database|sql|nosql|mongodb|postgres|redis|aws|gcp|azure|"
      r"terraform|ansible|nginx|linux|bash|shell|debug|refactor|PR|pull request|"
-     r"commit|branch|merge|test|unittest|pytest|npm|pip|conda|venv)\b", "code"),
+     r"commit|branch|merge|test|unittest|pytest|npm|pip|conda|venv|"
+     r"programming|languages?|frameworks?|codebase|software|engineer)\b", "code"),
 
     # Wellness
-    (r"\b(gym|workout|exercise|fitness|cardio|lifting|weights|yoga|meditation|"
+    (r"\b(gym|workouts?|exercis\w*|fitness|cardio|lifting|weights|yoga|meditat\w*|"
      r"mindfulness|therapy|mental health|sleep|rest|recovery|stretch|run|jog|"
-     r"walk|steps|heart rate|blood pressure|health check)\b", "wellness"),
+     r"walk|steps|heart rate|blood pressure|health\w*)\b", "wellness"),
 
     # Nutrition
-    (r"\b(breakfast|lunch|dinner|meal prep|recipe|cook|cooking|calorie|protein|carb|fat|"
-     r"vegetable|fruit|supplement|vitamin|diet|vegan|vegetarian|keto|fasting|"
-     r"hydration|water intake|restaurant|cafe|coffee shop|food|curry|pizza|"
+    (r"\b(breakfast|lunch|dinner|meals?|meal prep|recipes?|cook\w*|calories?|protein|carbs?|fat|"
+     r"vegetables?|fruits?|supplements?|vitamins?|diet\w*|vegan|vegetarian|keto|fasting|"
+     r"hydration|water intake|restaurants?|cafes?|coffee shop|foods?|curry|pizza|"
      r"sushi|ramen|pasta|salad|smoothie|snack|grocery|thai|indian food|"
-     r"mexican food|chinese food|korean food|cuisine|eating)\b", "nutrition"),
+     r"mexican food|chinese food|korean food|cuisines?|eat\w*)\b", "nutrition"),
 
     # Entertainment
-    (r"\b(movie|film|show|series|netflix|spotify|youtube|podcast|album|song|"
-     r"playlist|anime|manga|book|novel|game|gaming|xbox|playstation|steam|"
-     r"twitch|concert|festival|theater|theatre|tame impala|bonobo|"
-     r"listening to|watching|binge|streaming)\b", "entertainment"),
+    (r"\b(movies?|films?|shows?|series|netflix|spotify|youtube|podcasts?|albums?|songs?|"
+     r"playlists?|anime|manga|books?|novels?|read\w*|games?|gaming|xbox|playstation|steam|"
+     r"twitch|concerts?|festivals?|theaters?|theatres?|tame impala|bonobo|"
+     r"listen\w*|watch\w*|binge|streaming)\b", "entertainment"),
+
+    # Language Style (must be before Creative to catch writing-style queries)
+    (r"\b(writing style|tone|vocabulary|formality|casual|express\w*|phrasing|"
+     r"sentence pattern|common phrases)\b", "language_style"),
 
     # Creative
-    (r"\b(design|art|photo|photography|music production|beat|synth|draw|paint|"
+    (r"\b(design\w*|art|photo\w*|music production|beats?|synth|draw\w*|paint\w*|"
      r"illustration|typography|ui design|ux design|figma|sketch|creative|"
-     r"writing|blog|content creation|video edit)\b", "creative"),
+     r"writ\w+|blog\w*|content creation|video edit\w*|videos?)\b", "creative"),
 
     # Vibe
     (r"\b(vibe|mood|energy|aesthetic|atmosphere|ambiance|chill|hype|calm|focus|"
-     r"lofi|lo-fi|playlist mood|morning energy|night owl|music|tempo|beats)\b", "vibe"),
+     r"lofi|lo-fi|playlist mood|morning energy|night owl|morning person|tempo)\b", "vibe"),
 
     # Relationships
-    (r"\b(friend|family|partner|relationship|social|networking|community|"
-     r"team|collaboration|mentoring|mentor|dating|communication style)\b", "relationships"),
+    (r"\b(friends?|family|partner|relationships?|social|networking|community|"
+     r"teams?|collaborat\w*|mentor\w*|dating|communication style|communicat\w*|"
+     r"conflict|boundaries)\b", "relationships"),
 
     # Goals
-    (r"\b(goal|target|milestone|deadline|resolution|objective|plan|roadmap|"
-     r"quarter|okr|kpi|track progress|accountability|habit track)\b", "goals"),
+    (r"\b(goals?|targets?|milestones?|deadlines?|resolutions?|objectives?|plans?|roadmap|"
+     r"quarter|okr|kpi|track progress|accountability|habit track|accomplish\w*)\b", "goals"),
 
     # Life
-    (r"\b(morning routine|evening routine|daily routine|habit|lifestyle|"
+    (r"\b(morning routine|evening routine|daily routine|habits?|lifestyle|"
      r"apartment|house|move|relocate|commute|time management|schedule|"
-     r"productivity system|todo|planner)\b", "life"),
+     r"productivity system|todo|planner|morning person|shopping|routines?)\b", "life"),
 
     # Progress
-    (r"\b(progress|streak|wins|milestone reached|shipped|launched|completed|"
-     r"achievement|retrospective|weekly review|daily standup)\b", "progress"),
+    (r"\b(progress|streaks?|wins|milestone reached|shipped|launched|completed|"
+     r"achievements?|retrospective|weekly review|daily standup|accomplish\w*)\b", "progress"),
 
     # Professional
-    (r"\b(career|job|salary|promotion|interview|resume|linkedin|startup|"
-     r"company|business|entrepreneur|freelance|consulting|client|manager|"
-     r"lead|senior|principal|staff|director)\b", "professional"),
+    (r"\b(career|jobs?|salary|promotion|interview|resume|linkedin|startup|"
+     r"company|business|entrepreneur|freelance|consulting|clients?|managers?|"
+     r"lead|senior|principal|staff|director|role|leadership)\b", "professional"),
 
     # Learning
-    (r"\b(learn|course|tutorial|documentation|study|research|paper|article|"
-     r"conference|workshop|certification|bootcamp|mooc|udemy|coursera)\b", "learning"),
+    (r"\b(learn\w*|courses?|tutorials?|documentation|study\w*|research|papers?|articles?|"
+     r"conferences?|workshops?|certifications?|bootcamp|mooc|udemy|coursera)\b", "learning"),
 ]
 
 # Browser site_classifier category → dimension

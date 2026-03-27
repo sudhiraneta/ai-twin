@@ -152,7 +152,8 @@ if page == "Ask Persona":
                         raptor_badge = " [Pillar Summary]"
 
                     tier = r.get("_tier", "")
-                    tier_badge = " 🟢" if tier == "primary" else " 🔵" if tier == "secondary" else ""
+                    TIER_BADGES = {"primary": " 🟢", "memory": " 🟡", "supplementary": " 🔵"}
+                    tier_badge = TIER_BADGES.get(tier, "")
 
                     with st.expander(f"{icon} #{i+1} [{dim}] {relevance}%{tier_badge}{raptor_badge} — {title[:40] or r['text'][:40]}"):
                         meta_line = f"Source: {source} | Type: {mem_type} | Dimension: {dim} | Date: {ts}"

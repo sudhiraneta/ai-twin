@@ -56,14 +56,18 @@ class SearchRequest(BaseModel):
 
 @router.post("/memory/search")
 def search_memory(req: SearchRequest):
-    """Search memory — optionally filtered by dimension."""
-    if req.dimension:
-        store = get_vector_store()
-        results = store.search_by_dimension(req.query, req.dimension, n_results=req.n_results)
-    else:
-        twin = get_twin()
-        results = twin.search_memory(req.query, n_results=req.n_results)
-    return {"results": results}
+    """Skill-aware memory search — uses DIMENSION_SOURCES for tiered retrieval."""
+    twin = get_twin()
+    skill_result = twin.skill_search(
+        query=req.query,
+        n_results=req.n_results,
+        dimension=req.dimension,
+    )
+    return {
+        "results": skill_result["results"],
+        "dimensions": skill_result["dimensions"],
+        "skill_context": skill_result["skill_context"],
+    }
 
 
 @router.get("/memory/stats")
@@ -402,22 +406,44 @@ def extract_single_dimension(req: ExtractDimensionRequest):
 class AskPersonaRequest(BaseModel):
     query: str
     context: str
+    skill_context: str = ""
 
 
 @router.post("/persona/ask")
 def ask_persona(req: AskPersonaRequest):
-    """Generate an LLM answer about the user given fetched context."""
+    """Generate an LLM answer using skill-file instructions + tiered context."""
     from twin.llm_client import chat_completion
     from persona.profile import PersonaProfile
 
     profile = PersonaProfile.load()
-    system = (
-        "You are analyzing a person's data to answer questions about them. "
-        "Use ONLY the context provided below — do not fabricate information. "
-        "If the context doesn't contain relevant data, say so clearly.\n\n"
-        f"Persona summary: {profile.system_prompt[:500]}\n\n"
-        f"Context:\n{req.context}"
-    )
+
+    # Build system prompt with skill file instructions layered in
+    parts = [
+        "You are analyzing a person's data to answer questions about them.",
+        "Use ONLY the context provided below — do not fabricate information.",
+        "If the context doesn't contain relevant data, say so clearly.",
+    ]
+
+    # Inject skill file content (traits + do/don't instructions)
+    if req.skill_context:
+        parts.append("")
+        parts.append("=== SKILL FILE (dimension knowledge + instructions) ===")
+        parts.append(req.skill_context)
+        parts.append("=== END SKILL FILE ===")
+        parts.append("")
+        parts.append(
+            "IMPORTANT: Follow the Instructions section above. "
+            "The 'Do' list tells you what to include. "
+            "The 'Don't' list tells you what to avoid. "
+            "The Traits section contains pre-extracted knowledge — use it as your baseline, "
+            "then supplement with the retrieved context below."
+        )
+    else:
+        parts.append(f"\nPersona summary: {profile.system_prompt[:500]}")
+
+    parts.append(f"\n=== RETRIEVED CONTEXT ===\n{req.context}\n=== END CONTEXT ===")
+
+    system = "\n".join(parts)
 
     answer = chat_completion(
         system=system,

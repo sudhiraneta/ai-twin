@@ -1,20 +1,23 @@
 """
-Google Photos connector — syncs photo metadata into ChromaDB for wardrobe + travel.
+Google Photos connector via Google Takeout.
 
-Syncs every 2 days. Only pulls metadata (dates, locations, descriptions, categories).
-Does NOT download images — zero storage cost.
+Google locked down the Photos Library API for new projects in 2025.
+Instead, we parse Google Takeout exports which contain full photo metadata.
 
-First-time setup:
-  1. Go to console.cloud.google.com → create project
-  2. Enable "Photos Library API"
-  3. Create OAuth 2.0 credentials (Desktop app)
-  4. Download client_secret.json → save to data/google_photos_client.json
-  5. Run: python -c "from connectors.photos_connector import PhotosConnector; PhotosConnector().authenticate()"
-  6. This opens a browser for one-time OAuth consent
+Setup:
+  1. Go to takeout.google.com
+  2. Deselect all → select only "Google Photos"
+  3. Export → download ZIP
+  4. Put the ZIP (or extracted folder) at: data/takeout/
+  5. Run sync — we parse all JSON metadata automatically
+
+The metadata includes: filename, date, location (GPS), description, people, albums.
+No images are stored — only metadata goes into the twin's memory.
 """
 
 import json
 import os
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,258 +25,245 @@ from config import DATA_DIR
 from memory.chunker import Chunk, _ensure_metadata
 from .base import BaseConnector
 
-CREDENTIALS_FILE = DATA_DIR / "google_photos_client.json"
-TOKEN_FILE = DATA_DIR / "google_photos_token.json"
-SCOPES = ["https://www.googleapis.com/auth/photoslibrary.readonly"]
+TAKEOUT_DIR = DATA_DIR / "takeout"
 
 
 class PhotosConnector(BaseConnector):
-    """Connector for Google Photos metadata — wardrobe, travel, food, events."""
+    """Connector for Google Photos via Takeout export."""
 
     source_name = "google_photos"
 
-    def authenticate(self):
-        """One-time OAuth flow — opens browser for consent.
-        Handles both 'installed' (desktop) and 'web' credential types."""
-        import json as _json
-        from google_auth_oauthlib.flow import InstalledAppFlow
+    def fetch(self, since: float | None = None, **kwargs) -> list[Chunk]:
+        """Parse Google Takeout photo metadata from data/takeout/."""
+        TAKEOUT_DIR.mkdir(parents=True, exist_ok=True)
 
-        if not CREDENTIALS_FILE.exists():
-            print(f"Missing: {CREDENTIALS_FILE}")
-            print("Download OAuth client JSON from Google Cloud Console and save it there.")
-            return None
+        # Auto-extract any ZIP files
+        for zip_file in TAKEOUT_DIR.glob("*.zip"):
+            extract_dir = TAKEOUT_DIR / zip_file.stem
+            if not extract_dir.exists():
+                print(f"  Extracting {zip_file.name}...")
+                with zipfile.ZipFile(zip_file, "r") as zf:
+                    zf.extractall(extract_dir)
 
-        # Check if web or installed credentials
-        cred_data = _json.loads(CREDENTIALS_FILE.read_text())
+        # Find all photo metadata JSON files
+        json_files = []
+        for root, dirs, files in os.walk(TAKEOUT_DIR):
+            for f in files:
+                if f.endswith(".json") and not f.startswith("."):
+                    json_files.append(Path(root) / f)
 
-        if "web" in cred_data and "installed" not in cred_data:
-            # Convert web credentials to installed format for local flow
-            web = cred_data["web"]
-            converted = {"installed": {
-                "client_id": web["client_id"],
-                "project_id": web.get("project_id", ""),
-                "auth_uri": web["auth_uri"],
-                "token_uri": web["token_uri"],
-                "auth_provider_x509_cert_url": web.get("auth_provider_x509_cert_url", ""),
-                "client_secret": web["client_secret"],
-                "redirect_uris": ["http://localhost"],
-            }}
-            # Write converted file for InstalledAppFlow
-            converted_path = CREDENTIALS_FILE.parent / "google_photos_client_converted.json"
-            converted_path.write_text(_json.dumps(converted))
-            flow = InstalledAppFlow.from_client_secrets_file(str(converted_path), SCOPES)
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
-
-        creds = flow.run_local_server(port=0)
-
-        TOKEN_FILE.write_text(creds.to_json())
-        print(f"Authenticated! Token saved to {TOKEN_FILE}")
-        return creds
-
-    def _get_credentials(self):
-        """Load saved credentials, refreshing if expired."""
-        if not TOKEN_FILE.exists():
-            return None
-
-        from google.oauth2.credentials import Credentials
-        from google.auth.transport.requests import Request
-
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            TOKEN_FILE.write_text(creds.to_json())
-        return creds if creds and creds.valid else None
-
-    def _get_service(self):
-        """Build the Google Photos API service."""
-        from googleapiclient.discovery import build
-
-        creds = self._get_credentials()
-        if not creds:
-            print("Not authenticated. Run: PhotosConnector().authenticate()")
-            return None
-        return build("photoslibrary", "v1", credentials=creds, static_discovery=False)
-
-    def fetch(self, since: float | None = None, days_back: int = 60) -> list[Chunk]:
-        """Fetch photo metadata and create chunks for wardrobe/travel/food."""
-        service = self._get_service()
-        if not service:
+        if not json_files:
+            print(f"  No takeout data found in {TAKEOUT_DIR}")
+            print(f"  Export from takeout.google.com → drop ZIP in {TAKEOUT_DIR}")
             return []
 
-        # Build date filter
-        if since:
-            start_dt = datetime.fromtimestamp(since, tz=timezone.utc)
-        else:
-            from datetime import timedelta
-            start_dt = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
+        print(f"  Found {len(json_files)} metadata files")
 
-        date_filter = {
-            "dateFilter": {
-                "ranges": [{
-                    "startDate": {
-                        "year": start_dt.year,
-                        "month": start_dt.month,
-                        "day": start_dt.day,
-                    },
-                    "endDate": {
-                        "year": datetime.now().year,
-                        "month": datetime.now().month,
-                        "day": datetime.now().day,
-                    },
-                }]
-            }
-        }
-
-        # Fetch photos
-        all_items = []
-        page_token = None
-        max_pages = 10  # limit to avoid excessive API calls
-
-        for _ in range(max_pages):
-            body = {"filters": date_filter, "pageSize": 100}
-            if page_token:
-                body["pageToken"] = page_token
-
+        # Parse all photo metadata
+        photos = []
+        for jf in json_files:
             try:
-                results = service.mediaItems().search(body=body).execute()
-            except Exception as e:
-                print(f"  Photos API error: {e}")
-                break
+                data = json.loads(jf.read_text(encoding="utf-8"))
+                photo = self._parse_metadata(data, jf)
+                if photo:
+                    photos.append(photo)
+            except (json.JSONDecodeError, KeyError):
+                continue
 
-            items = results.get("mediaItems", [])
-            all_items.extend(items)
-            page_token = results.get("nextPageToken")
-            if not page_token:
-                break
+        print(f"  Parsed {len(photos)} photos with metadata")
 
-        print(f"  Fetched {len(all_items)} photos metadata")
+        # Filter by date if since is set
+        if since:
+            photos = [p for p in photos if p.get("timestamp", 0) > since]
 
         # Group by date and create chunks
         chunks = []
         by_date: dict[str, list] = {}
+        for photo in photos:
+            date_str = photo.get("date", "unknown")
+            by_date.setdefault(date_str, []).append(photo)
 
-        for item in all_items:
-            metadata = item.get("mediaMetadata", {})
-            creation_time = metadata.get("creationTime", "")
-            date_str = creation_time[:10] if creation_time else "unknown"
+        for date_str, day_photos in sorted(by_date.items()):
+            chunks.extend(self._create_day_chunks(date_str, day_photos))
 
-            photo_info = {
-                "id": item.get("id", ""),
-                "filename": item.get("filename", ""),
-                "description": item.get("description", ""),
-                "mime_type": item.get("mimeType", ""),
-                "creation_time": creation_time,
-                "width": metadata.get("width", ""),
-                "height": metadata.get("height", ""),
-            }
+        return chunks
 
-            # Extract location if available (from photo metadata)
-            if "photo" in metadata:
-                photo_meta = metadata["photo"]
-                photo_info["camera"] = photo_meta.get("cameraMake", "") + " " + photo_meta.get("cameraModel", "")
+    def _parse_metadata(self, data: dict, file_path: Path) -> dict | None:
+        """Parse a single Google Takeout photo metadata JSON."""
+        # Takeout JSON structure varies — handle common formats
+        title = data.get("title", "")
+        description = data.get("description", "")
 
-            by_date.setdefault(date_str, []).append(photo_info)
+        # Timestamp
+        ts_data = data.get("photoTakenTime", data.get("creationTime", {}))
+        timestamp = 0
+        date_str = "unknown"
+        if isinstance(ts_data, dict) and ts_data.get("timestamp"):
+            timestamp = int(ts_data["timestamp"])
+            date_str = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+        elif isinstance(ts_data, str):
+            try:
+                dt = datetime.fromisoformat(ts_data.replace("Z", "+00:00"))
+                timestamp = int(dt.timestamp())
+                date_str = dt.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
 
-        # Create daily photo summary chunks
-        for date_str, photos in sorted(by_date.items()):
-            descriptions = [p["description"] for p in photos if p.get("description")]
-            filenames = [p["filename"] for p in photos]
+        # Location
+        geo = data.get("geoData", data.get("geoDataExif", {}))
+        lat = geo.get("latitude", 0)
+        lng = geo.get("longitude", 0)
+        altitude = geo.get("altitude", 0)
+        has_location = lat != 0 and lng != 0
 
-            text_lines = [
-                f"Photos: {date_str} ({len(photos)} photos)",
-            ]
+        # People
+        people = [p.get("name", "") for p in data.get("people", []) if p.get("name")]
 
-            if descriptions:
-                text_lines.append(f"Descriptions: {'; '.join(descriptions[:10])}")
+        # Google's auto-labels (if present)
+        labels = data.get("labels", [])
 
-            # Infer categories from filenames and descriptions
-            all_text = " ".join(descriptions + filenames).lower()
-            categories = []
-            if any(w in all_text for w in ["outfit", "ootd", "mirror", "selfie", "dress", "shirt", "jacket"]):
-                categories.append("outfit")
-            if any(w in all_text for w in ["food", "meal", "dinner", "lunch", "restaurant", "cafe", "coffee"]):
-                categories.append("food")
-            if any(w in all_text for w in ["travel", "trip", "flight", "hotel", "beach", "mountain", "hike"]):
-                categories.append("travel")
-            if any(w in all_text for w in ["gym", "workout", "run", "yoga"]):
-                categories.append("fitness")
+        # Determine category from filename, description, and labels
+        all_text = f"{title} {description} {' '.join(labels)}".lower()
+        category = "general"
+        if any(w in all_text for w in ["outfit", "ootd", "mirror", "selfie", "dress", "shirt", "jacket", "fashion"]):
+            category = "outfit"
+        elif any(w in all_text for w in ["food", "meal", "dinner", "lunch", "restaurant", "cafe", "coffee", "cook"]):
+            category = "food"
+        elif any(w in all_text for w in ["travel", "trip", "flight", "hotel", "beach", "mountain", "hike", "vacation"]):
+            category = "travel"
+        elif any(w in all_text for w in ["gym", "workout", "run", "yoga", "fitness"]):
+            category = "fitness"
+        elif has_location:
+            category = "places"
 
-            if categories:
-                text_lines.append(f"Categories: {', '.join(categories)}")
+        if not title and not description and not has_location and not people:
+            return None
 
-            text_lines.append(f"Files: {', '.join(filenames[:10])}")
+        return {
+            "title": title,
+            "description": description,
+            "date": date_str,
+            "timestamp": timestamp,
+            "lat": lat,
+            "lng": lng,
+            "has_location": has_location,
+            "people": people,
+            "labels": labels,
+            "category": category,
+            "file_path": str(file_path),
+        }
 
-            # Determine dimension
-            if "outfit" in categories:
-                dimension = "wardrobe"
-                pillar = "SOCIAL"
-            elif "travel" in categories:
-                dimension = "travel"
-                pillar = "PURPOSE"
-            elif "food" in categories:
-                dimension = "nutrition"
-                pillar = "BODY"
-            else:
-                dimension = "life"
-                pillar = "PURPOSE"
+    def _create_day_chunks(self, date_str: str, photos: list) -> list[Chunk]:
+        """Create chunks from a day's worth of photos."""
+        chunks = []
 
-            chunks.append(Chunk(
-                text="\n".join(text_lines),
-                metadata=_ensure_metadata({
-                    "source": self.source_name,
-                    "conversation_id": f"photos_{date_str}",
-                    "title": f"Photos {date_str}",
-                    "timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
-                    "msg_timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
-                    "role": "user",
-                    "type": "photo_daily",
-                    "pillar": pillar,
-                    "dimension": dimension,
-                    "classified": "true",
-                    "photo_count": str(len(photos)),
-                }),
-            ))
+        # Daily summary
+        categories = {}
+        locations = set()
+        all_people = set()
+        descriptions = []
 
-        # Also create per-category summary chunks for wardrobe analysis
-        outfit_photos = [p for photos in by_date.values() for p in photos
-                        if any(w in (p.get("description", "") + p.get("filename", "")).lower()
-                              for w in ["outfit", "ootd", "mirror", "selfie"])]
-        if outfit_photos:
-            text = f"Wardrobe: {len(outfit_photos)} outfit photos found\n"
-            text += "Dates: " + ", ".join(sorted(set(p["creation_time"][:10] for p in outfit_photos)))
-            chunks.append(Chunk(
-                text=text,
-                metadata=_ensure_metadata({
-                    "source": self.source_name,
-                    "conversation_id": "wardrobe_summary",
-                    "title": "Wardrobe photo summary",
-                    "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                    "msg_timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                    "role": "user",
-                    "type": "wardrobe_summary",
-                    "pillar": "SOCIAL",
-                    "dimension": "wardrobe",
-                    "classified": "true",
-                }),
-            ))
+        for p in photos:
+            cat = p.get("category", "general")
+            categories[cat] = categories.get(cat, 0) + 1
+            if p.get("has_location"):
+                locations.add(f"{p['lat']:.3f},{p['lng']:.3f}")
+            all_people.update(p.get("people", []))
+            if p.get("description"):
+                descriptions.append(p["description"])
+
+        text_lines = [f"Photos: {date_str} ({len(photos)} photos)"]
+
+        cat_str = ", ".join(f"{cat} ({n})" for cat, n in sorted(categories.items(), key=lambda x: -x[1]))
+        text_lines.append(f"Categories: {cat_str}")
+
+        if descriptions:
+            text_lines.append(f"Descriptions: {'; '.join(descriptions[:5])}")
+        if all_people:
+            text_lines.append(f"People: {', '.join(sorted(all_people))}")
+        if locations:
+            text_lines.append(f"Locations: {len(locations)} unique spots")
+
+        # List some filenames
+        filenames = [p["title"] for p in photos if p.get("title")][:10]
+        if filenames:
+            text_lines.append(f"Files: {', '.join(filenames)}")
+
+        # Determine dimension
+        dominant = max(categories, key=categories.get) if categories else "general"
+        dim_map = {
+            "outfit": ("SOCIAL", "wardrobe"),
+            "food": ("BODY", "nutrition"),
+            "travel": ("PURPOSE", "travel"),
+            "fitness": ("BODY", "wellness"),
+            "places": ("PURPOSE", "life"),
+            "general": ("PURPOSE", "life"),
+        }
+        pillar, dimension = dim_map.get(dominant, ("PURPOSE", "life"))
+
+        chunks.append(Chunk(
+            text="\n".join(text_lines),
+            metadata=_ensure_metadata({
+                "source": self.source_name,
+                "conversation_id": f"photos_{date_str}",
+                "title": f"Photos {date_str}",
+                "timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
+                "msg_timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
+                "role": "user",
+                "type": "photo_daily",
+                "pillar": pillar,
+                "dimension": dimension,
+                "classified": "true",
+                "photo_count": str(len(photos)),
+            }),
+        ))
+
+        # Create per-category chunks for outfit/travel
+        for cat in ["outfit", "travel", "food"]:
+            cat_photos = [p for p in photos if p.get("category") == cat]
+            if len(cat_photos) >= 1:
+                cat_lines = [f"{cat.title()}: {date_str} ({len(cat_photos)} photos)"]
+                for p in cat_photos[:10]:
+                    parts = []
+                    if p.get("title"):
+                        parts.append(p["title"])
+                    if p.get("description"):
+                        parts.append(p["description"])
+                    if p.get("people"):
+                        parts.append(f"with {', '.join(p['people'])}")
+                    cat_lines.append(f"- {' | '.join(parts) if parts else '(no details)'}")
+
+                cat_pillar, cat_dim = dim_map.get(cat, ("PURPOSE", "life"))
+                chunks.append(Chunk(
+                    text="\n".join(cat_lines),
+                    metadata=_ensure_metadata({
+                        "source": self.source_name,
+                        "conversation_id": f"photos_{cat}_{date_str}",
+                        "title": f"{cat.title()} {date_str}",
+                        "timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
+                        "msg_timestamp": f"{date_str}T00:00:00+00:00" if date_str != "unknown" else "",
+                        "role": "user",
+                        "type": f"photo_{cat}",
+                        "pillar": cat_pillar,
+                        "dimension": cat_dim,
+                        "classified": "true",
+                    }),
+                ))
 
         return chunks
 
     def get_albums(self) -> list[dict]:
-        """List all albums (useful for finding outfit/travel albums)."""
-        service = self._get_service()
-        if not service:
+        """List albums found in takeout data."""
+        if not TAKEOUT_DIR.exists():
             return []
 
         albums = []
-        page_token = None
-        for _ in range(5):
-            result = service.albums().list(pageSize=50, pageToken=page_token).execute()
-            albums.extend(result.get("albums", []))
-            page_token = result.get("nextPageToken")
-            if not page_token:
-                break
-
-        return [{"id": a.get("id"), "title": a.get("title"), "count": a.get("mediaItemsCount")}
-                for a in albums]
+        for d in TAKEOUT_DIR.rglob("*"):
+            if d.is_dir() and any(d.glob("*.json")):
+                photo_count = len(list(d.glob("*.json")))
+                albums.append({
+                    "id": d.name,
+                    "title": d.name,
+                    "count": str(photo_count),
+                })
+        return albums

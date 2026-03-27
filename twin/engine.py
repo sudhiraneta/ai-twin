@@ -73,6 +73,227 @@ class TwinEngine:
         results.sort(key=lambda r: r.get("distance", 1.0))
         return results[:n_results]
 
+    # ------------------------------------------------------------------
+    # Semantic dimension matching — fallback when keyword classifier misses
+    # ------------------------------------------------------------------
+
+    def _semantic_dimension_match(self, query: str, dimension_sources: dict) -> list[str]:
+        """Find best-matching dimensions by embedding similarity to their queries.
+
+        Embeds the user query and each dimension's primary_queries, then picks
+        the dimension(s) whose queries are closest in embedding space.
+        """
+        from memory.embeddings import EmbeddingEngine
+
+        engine = self.vector_store.embedding_engine
+        query_emb = engine.embed_single(query)
+
+        import numpy as np
+        query_vec = np.array(query_emb, dtype=np.float32)
+        query_norm = np.linalg.norm(query_vec)
+        if query_norm > 0:
+            query_vec = query_vec / query_norm
+
+        scores: list[tuple[str, float]] = []
+
+        for dim_name, sources in dimension_sources.items():
+            # Combine primary + memory queries as dimension signature
+            all_queries = sources.get("primary_queries", []) + sources.get("memory_queries", [])
+            if not all_queries:
+                continue
+
+            combined_text = " ".join(all_queries)
+            dim_emb = engine.embed_single(combined_text)
+            dim_vec = np.array(dim_emb, dtype=np.float32)
+            dim_norm = np.linalg.norm(dim_vec)
+            if dim_norm > 0:
+                dim_vec = dim_vec / dim_norm
+
+            # Cosine similarity (higher = more similar)
+            similarity = float(np.dot(query_vec, dim_vec))
+            scores.append((dim_name, similarity))
+
+        # Sort by similarity descending, return top matches above threshold
+        scores.sort(key=lambda x: -x[1])
+        threshold = 0.3  # minimum similarity to consider a match
+        matched = [name for name, sim in scores if sim >= threshold]
+        return matched[:3]
+
+    # ------------------------------------------------------------------
+    # Skill-aware search — uses DIMENSION_SOURCES for tiered retrieval
+    # ------------------------------------------------------------------
+
+    def skill_search(self, query: str, n_results: int = 15, dimension: str | None = None) -> dict:
+        """Skill-file-driven retrieval with 3-tier sources.
+
+        Tier 1 (CORE):  Singularity entries + Apple Notes + data_points + journals
+        Tier 2 (MEMORY): Imported LLM conversations (ChatGPT/Claude/Gemini)
+        Tier 3 (SUPPLEMENTARY): Browser, weekly reviews, photos, etc.
+
+        Returns:
+            {
+                "dimensions": list[str] — matched dimension names,
+                "results": list[dict] — merged retrieval chunks with _tier tags,
+                "skill_context": str — skill file content for LLM prompt,
+            }
+        """
+        from persona.skills import DIMENSION_SOURCES, read_skill_file
+
+        # 1. Determine relevant dimensions
+        if dimension:
+            matched_dims = [dimension]
+        else:
+            matched_dims = self.classifier.classify_text(query)
+
+        # Fallback: if keyword classifier finds nothing, use semantic matching
+        # against each dimension's primary queries to find the best-fit dimension
+        if not matched_dims:
+            matched_dims = self._semantic_dimension_match(query, DIMENSION_SOURCES)
+
+        if not matched_dims:
+            # Last resort: generic search, no skill orchestration
+            return {
+                "dimensions": [],
+                "results": self.search_memory(query, n_results),
+                "skill_context": "",
+            }
+
+        seen_ids: set[str] = set()
+        results: list[dict] = []
+        skill_parts: list[str] = []
+
+        # Budget allocation: ~50% primary, ~30% memory, ~20% supplementary
+        tier1_budget = max(n_results // 2, 4)
+        tier2_budget = max(n_results * 3 // 10, 3)
+
+        for dim_name in matched_dims[:3]:
+            sources = DIMENSION_SOURCES.get(dim_name)
+            if not sources:
+                continue
+
+            # --- Collect skill file content for prompt injection ---
+            skill_content = read_skill_file(dim_name)
+            if skill_content:
+                skill_parts.append(skill_content)
+
+            # =============================================================
+            # TIER 1: Core — Singularity + clustered Apple Notes + journals
+            # =============================================================
+            primary_types = sources.get("primary_types", [])
+            primary_queries = sources.get("primary_queries", [])
+
+            per_type = max(tier1_budget // max(len(primary_types), 1), 2)
+            for ptype in primary_types:
+                type_results = self.vector_store.search(
+                    query=query,
+                    n_results=per_type,
+                    where={"type": ptype},
+                    max_distance=RELEVANCE_THRESHOLD,
+                )
+                for r in type_results:
+                    if r["id"] not in seen_ids:
+                        seen_ids.add(r["id"])
+                        r["_tier"] = "primary"
+                        results.append(r)
+
+            # Run skill-defined queries scoped to this dimension for broader recall
+            for pq in primary_queries:
+                pq_results = self.vector_store.search_by_dimension(
+                    query=pq,
+                    dimension=dim_name,
+                    n_results=3,
+                    max_distance=RELEVANCE_THRESHOLD,
+                )
+                for r in pq_results:
+                    if r["id"] not in seen_ids:
+                        seen_ids.add(r["id"])
+                        r["_tier"] = "primary"
+                        results.append(r)
+
+            # =============================================================
+            # TIER 2: LLM Memory — ChatGPT/Claude/Gemini conversations
+            # =============================================================
+            memory_types = sources.get("memory_types", [])
+            memory_queries = sources.get("memory_queries", [])
+
+            if memory_types:
+                per_mem_type = max(tier2_budget // max(len(memory_types), 1), 2)
+                for mtype in memory_types:
+                    mem_results = self.vector_store.search(
+                        query=query,
+                        n_results=per_mem_type,
+                        where={"type": mtype},
+                        max_distance=RELEVANCE_THRESHOLD,
+                    )
+                    for r in mem_results:
+                        if r["id"] not in seen_ids:
+                            seen_ids.add(r["id"])
+                            r["_tier"] = "memory"
+                            results.append(r)
+
+                # Run memory-specific queries for broader LLM conversation recall
+                for mq in memory_queries:
+                    mq_results = self.vector_store.search_with_recency(
+                        query=mq,
+                        n_results=3,
+                        where={"type": "user_message"},
+                        max_distance=RELEVANCE_THRESHOLD,
+                        recency_weight=RECENCY_WEIGHT,
+                    )
+                    for r in mq_results:
+                        if r["id"] not in seen_ids:
+                            seen_ids.add(r["id"])
+                            r["_tier"] = "memory"
+                            results.append(r)
+
+            # =============================================================
+            # TIER 3: Supplementary — browser, reviews, photos (fill gaps)
+            # =============================================================
+            if len(results) < n_results:
+                secondary_types = sources.get("secondary_types", [])
+                secondary_queries = sources.get("secondary_queries", [])
+                remaining = n_results - len(results)
+
+                per_sec_type = max(remaining // max(len(secondary_types), 1), 1)
+                for stype in secondary_types:
+                    sec_results = self.vector_store.search(
+                        query=query,
+                        n_results=per_sec_type,
+                        where={"type": stype},
+                        max_distance=RELEVANCE_THRESHOLD,
+                    )
+                    for r in sec_results:
+                        if r["id"] not in seen_ids:
+                            seen_ids.add(r["id"])
+                            r["_tier"] = "supplementary"
+                            results.append(r)
+
+                for sq in secondary_queries:
+                    sq_results = self.vector_store.search_with_recency(
+                        query=sq,
+                        n_results=3,
+                        max_distance=RELEVANCE_THRESHOLD,
+                        recency_weight=RECENCY_WEIGHT,
+                    )
+                    for r in sq_results:
+                        if r["id"] not in seen_ids:
+                            seen_ids.add(r["id"])
+                            r["_tier"] = "supplementary"
+                            results.append(r)
+
+        # Sort: tier order (primary > memory > supplementary), then by distance
+        tier_order = {"primary": 0, "memory": 1, "supplementary": 2}
+        results.sort(key=lambda r: (tier_order.get(r.get("_tier", ""), 3), r.get("distance", 1.0)))
+
+        # Build skill context string for LLM prompt
+        skill_context = "\n\n---\n\n".join(skill_parts) if skill_parts else ""
+
+        return {
+            "dimensions": matched_dims[:3],
+            "results": results[:n_results],
+            "skill_context": skill_context,
+        }
+
     @staticmethod
     def _format_memory_line(r: dict) -> str:
         """Format a single memory result into a prefixed line for prompt injection."""
